@@ -77,8 +77,8 @@ const [modalVisible, setModalVisible] = useState(false);
         </TouchableOpacity> 
         <TouchableOpacity
           accesible={true}
-          accessibilityLabel="Connect to Fitness Wearable"
-          accessibilityHint="Initiate Connection to Fitness Wearable"
+          accessibilityLabel="Connect to Device"
+          accessibilityHint="Initiate Connection to Device"
           onPress={() => setModalVisible(true)}
           style={{
             ...styles.navigationButton,
