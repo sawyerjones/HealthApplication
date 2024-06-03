@@ -35,9 +35,6 @@ export const Home = props => {
   //     Linking.removeEventListener('url', handleOpenURL);
   //   };
   // }, []);
-/* 
-TODO: Combine the buttons for the fitness wearables
-*/
 const [modalVisible, setModalVisible] = useState(false);
   return (
     <SafeAreaView>
@@ -121,7 +118,7 @@ const [modalVisible, setModalVisible] = useState(false);
                 </View>
                 </Modal>
               <Text accessible={false} style={styles.navigationButtonText}>
-                Connect to Fitness Wearable
+                Connect to Device
               </Text>
             </TouchableOpacity>
       </View>
