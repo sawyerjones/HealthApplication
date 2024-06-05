@@ -14,11 +14,10 @@ import TTS from 'react-native-tts';
 
 const { width: windowWidth, height: windowHeight } = Dimensions.get('window');
 
-export const Temperature = ({ onContinue }) => {
+export const Temperature = ({ onContinue, selectedHand, selectedFinger, scanStep }) => {
   const [displayData, setDisplayData] = useState([]);
   const [buffer, setBuffer] = useState([]);
   const [countdown, setCountdown] = useState(0);
-  const [description, setDescription] = useState("Default Description");
   const [scans, setScans] = useState([]);
   const [shouldSave, setShouldSave] = useState(false);
 
@@ -127,6 +126,7 @@ export const Temperature = ({ onContinue }) => {
   const cleanupVoice = () => {
     Voice.destroy().catch(error => console.error('Failed to destroy voice:', error));
     TTS.stop().catch(error => console.error('Failed to stop TTS:', error));
+    Voice.stop();
   };
 
   const getFillColor = (temp) => {
@@ -158,20 +158,26 @@ export const Temperature = ({ onContinue }) => {
 
   const saveScan = (dataToSave) => {
     console.log('Executing saveScan function');
-    // console.log('Current displayData:', dataToSave); // Log current displayData
     if (dataToSave.length === 0) {
       console.warn('No data to save');
       return;
     }
 
     const timestamp = new Date().toISOString();
+    let description = `${selectedHand} Hand`; // Base description on selected hand
+
+    if (scanStep === 2) {
+      description += `, ${selectedFinger} Finger Tip`;
+    } else if (scanStep === 3) {
+      description += `, ${selectedFinger} Finger Proximal`;
+    }
+
     const data = { timestamp, description, data: dataToSave };
     const key = `scan-${timestamp}`;
     AsyncStorage.setItem(key, JSON.stringify(data)).then(() => {
       console.log('Scan and description saved:', data);
       const updatedScans = [...scans, { ...data, key }];
       setScans(updatedScans);
-      setDescription('Default Description');
       handleContinue(updatedScans); // Pass updated scans to handleContinue
     }).catch(error => {
       console.error('Failed to save the scan and description:', error);
@@ -181,6 +187,9 @@ export const Temperature = ({ onContinue }) => {
   const handleContinue = (savedScans) => {
     sendControlCommand('STOP');
     onContinue(savedScans);
+    TTS.stop();
+    Voice.stop();
+    Voice.destroy().catch(error => console.log('DESTROYING VOICE FAILED', error));
   };
 
   return (
@@ -225,15 +234,17 @@ const styles = StyleSheet.create({
   instructionText: {
     fontSize: 18,
     fontWeight: 'bold',
-    margin: 20,
+    marginTop: 20,
+    marginHorizontal: 20,
     textAlign: 'center',
+    paddingTop: 20,
   },
   buttonContainerBottom: {
     flexDirection: 'row',
     justifyContent: 'space-evenly',
     width: '100%',
     paddingHorizontal: 10,
-    paddingBottom: 20,
+    paddingBottom: 50,
   },
   savingButtons: {
     padding: 10,
