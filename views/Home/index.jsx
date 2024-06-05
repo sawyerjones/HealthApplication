@@ -5,13 +5,13 @@ import {
   TouchableOpacity,
   Text,
   Linking,
-  Alert
+  Modal,
 } from 'react-native';
 import {
   initiateFitbitAuth,
   handleOpenURL,
 } from '../../components/Fitbit/index.js';
-import React, {useEffect} from 'react';
+import React, {useEffect, useState} from 'react';
 import { connectToIOSWatch } from '../../components/iOSWatch/index.js';
 
 // import AntIcon from 'react-native-vector-icons/AntDesign';
@@ -57,7 +57,16 @@ export const Home = () => {
   useEffect(() => {
     Linking.addEventListener('url', handleOpenURL);
   }, []);
-
+  // useEffect(() => {
+  //   const handleOpenURL = (event) => {
+  //   console.log('Received URL:', event.url);
+  //   };
+  //   Linking.addEventListener('url', handleOpenURL);
+  //   return () => {
+  //     Linking.removeEventListener('url', handleOpenURL);
+  //   };
+  // }, []);
+const [modalVisible, setModalVisible] = useState(false);
   return (
     <SafeAreaView>
       <View style={styles.titleContainer}>
@@ -96,28 +105,54 @@ export const Home = () => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          accessible={true}
-          accessibilityLabel="Connect to Fitbit"
-          accessibilityHint="Initiate Fitbit Authentication"
-          onPress={initiateFitbitAuth}
+          accesible={true}
+          accessibilityLabel="Connect to Device"
+          accessibilityHint="Initiate Connection to Device"
+          onPress={() => setModalVisible(true)}
           style={{
             ...styles.navigationButton,
             ...styles.navigationButtonFitbit,
           }}>
-          <Text accessible={false} style={styles.navigationButtonText}>
-            Connect to Fitbit
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          accessible={true}
-          accessibilityLabel="Connect to iOS Watch"
-          accessibilityHint="Initiate iOS Watch Connection"
-          onPress={connectToIOSWatch}
-          style={{...styles.navigationButton, ...styles.navigationButtoniOSWatch}}>
-          <Text accessible={false} style={styles.navigationButtonText}>
-             Connect to iOS Watch
-          </Text>
-        </TouchableOpacity>
+            <Modal
+              animationType="fade"
+              transparent ={true}
+              visible={modalVisible}
+              onRequestClose={() => setModalVisible(false)}>
+              <View style={styles.modalContianer}>
+                <TouchableOpacity
+                  accessible={true}
+                  accessibilityLabel="Connect to Fitbit"
+                  accessibilityHint="Initiate Fitbit Authentication"
+                  onPress={initiateFitbitAuth}
+                  onPressOut={() => setModalVisible(false)}
+                  style={{
+                    ...styles.navigationButton,
+                    ...styles.navigationButtonFitbit,
+                  }}>
+                    <Text accessible={false} style={styles.navigationButtonText}>
+                      Connect to Fitbit
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessible={true}
+                  accessibilityLabel="Connect to iOS Watch"
+                  accessibilityHint="Initiate iOS Watch Connection"
+                  onPress={connectToIOSWatch}
+                  onPressOut={() => setModalVisible(false)}
+                  style={{
+                    ...styles.navigationButton,
+                   ...styles.navigationButtoniOSWatch
+                   }}>
+                  <Text accessible={false} style={styles.navigationButtonText}>
+                    Connect to iOS Watch
+                  </Text>
+                </TouchableOpacity>
+                </View>
+                </Modal>
+              <Text accessible={false} style={styles.navigationButtonText}>
+                Connect to Device
+              </Text>
+            </TouchableOpacity>
         <TouchableOpacity
           accessible={true}
           accessibilityLabel="Connect to Bluetooth"
@@ -189,5 +224,25 @@ const styles = StyleSheet.create({
   },
   navigationButtonBluetooth: {
     backgroundColor: '#4388d6',
+  },
+  modalContianer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,.75)',
+  },
+  modalView: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 });
