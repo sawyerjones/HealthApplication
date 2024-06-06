@@ -83,7 +83,6 @@ const [modalVisible, setModalVisible] = useState(false);
           }}>
             <Modal
               animationType="fade"
-              transparent ={true}
               visible={modalVisible}
               onRequestClose={() => setModalVisible(false)}>
               <View style={styles.modalContianer}>
@@ -114,6 +113,19 @@ const [modalVisible, setModalVisible] = useState(false);
                   <Text accessible={false} style={styles.navigationButtonText}>
                     Connect to iOS Watch
                   </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessible={true}
+                  accessibilityLabel="Cancel"
+                  accessibilityHint="Cancel"
+                  onPressOut={() => setModalVisible(false)}
+                  style={{
+                    ...styles.navigationButton,
+                    ...styles.navigationButtonFitbit,
+                  }}>
+                    <Text accessible={false} style={styles.navigationButtonText}>
+                      Cancel
+                    </Text>
                 </TouchableOpacity>
                 </View>
                 </Modal>
