@@ -1,0 +1,99 @@
+[
+    {
+        "header": "In the past week, please indicate how often you expirience the following:",
+        "id": "1",
+        "question": "Cold hands and feet at indoor room temperature",
+        "answers": ["Never", "Rarely", "Sometimes", "Often", "Always"]
+    },
+    {
+        "header": "In the past week, please indicate how often you expirience the following:",
+        "id": "2",
+        "question": "Cold abdomen, back, waist or knees at indoor room temperature",
+        "answers": ["Never", "Rarely", "Sometimes", "Often", "Always"]
+    },
+    {
+        "header": "In the past week, please indicate how often you expirience the following:",
+        "id": "3",
+        "question": "Wear more clothes than others because you are often concerned about being cold",
+        "answers": ["Never", "Rarely", "Sometimes", "Often", "Always"]
+    },
+    {
+        "header": "In the past week, please indicate how often you expirience the following:",
+        "id": "4",
+        "question": "Wear thermal pants or leggings under your regular pants",
+        "answers": ["Never", "Rarely", "Sometimes", "Often", "Always"]
+    },
+    {
+        "header": "For the food item below, what was the frequency and portion size you consumed, over the past week?",
+        "id": "5",
+        "question": "Regular Ice Cream",
+        "answers": ["Never or less than 1 time/week", "1 time/week", "2-4 times/week", "5-6 times/week", "1 time/day", "2-3 times/day", "4-5 times/day", "6+ times/day"]
+    },
+    {
+        "header": "For the food item below, what was the frequency and portion size you consumed, over the past week?",
+        "id": "6",
+        "question": "Regular Ice Cream",
+        "answers": ["Less than ½ cup", "½ cup", "More than ½ cup", "N/A"]
+    },
+    {
+        "header": "For the drink items below, what was the frequency you consumed, over the past week?",
+        "id": "7",
+        "question": "1 serving of cold drinks or beverages (e.g., milk and juices taken out from a refrigerator or iced)",
+        "answers": ["Never or less than 1 time/week", "1 time/week", "2-4 times/week", "5-6 times/week", "1 time/day", "2-3 times/day", "4-5 times/day", "6+ times/day"]
+    },
+    {
+        "header": "For the drink items below, what was the frequency you consumed, over the past week?",
+        "id": "8",
+        "question": "1 serving of cold plain water (e.g., water bottle taken out from a refrigerator or iced)",
+        "answers": ["Never or less than 1 time/week", "1 time/week", "2-4 times/week", "5-6 times/week", "1 time/day", "2-3 times/day", "4-5 times/day", "6+ times/day"]
+    },
+    {
+        "header": "Please pick the answer that best describes how often you consumed cold or hot foods (excluding drinks) during the past week",
+        "id": "9",
+        "question": "Entirely or mostly cold foods, excluding drinks",
+        "answers": ["Never or less than 1 time/week", "1 time/week", "2-4 times/week", "5-6 times/week", "1 time/day", "2-3 times/day", "4-5 times/day", "6+ times/day"]
+    },
+    {
+        "header": "Please pick the answer that best describes how often you consumed cold or hot foods (excluding drinks) during the past week",
+        "id": "10",
+        "question": "Half hot/half cold foods, excluding drinks",
+        "answers": ["Never or less than 1 time/week", "1 time/week", "2-4 times/week", "5-6 times/week", "1 time/day", "2-3 times/day", "4-5 times/day", "6+ times/day"]
+    },
+    {
+        "header": "Please pick the answer that best describes how often you consumed cold or hot foods (excluding drinks) during the past week",
+        "id": "11",
+        "question": "Room temperature foods, excluding drinks",
+        "answers": ["Never or less than 1 time/week", "1 time/week", "2-4 times/week", "5-6 times/week", "1 time/day", "2-3 times/day", "4-5 times/day", "6+ times/day"]
+    },
+    {
+        "header": "Please pick the answer that best describes how often you consumed cold or hot foods (excluding drinks) during the past week",
+        "id": "12",
+        "question": "Entirely or mostly hot foods, excluding drinks",
+        "answers": ["Never or less than 1 time/week", "1 time/week", "2-4 times/week", "5-6 times/week", "1 time/day", "2-3 times/day", "4-5 times/day", "6+ times/day"]
+    },
+    {
+        "header": "Below is a list of symptoms people sometimes have. For each item, mark the one that best describes how bothersome the symptom was during the past week for you.\nIf you did not have the problem, please mark \"symptom did not occur.\"",
+        "id" : "13",
+        "question": "Bloating or gas, during the past week:",
+        "answers": ["Symptom did not occur", "Mild symptom", "Moderate symptom", "Severe symptom"]
+    },
+    {
+        "header": "Below is a list of symptoms people sometimes have. For each item, mark the one that best describes how bothersome the symptom was during the past week for you.\nIf you did not have the problem, please mark \"symptom did not occur.\"",
+        "id" : "14",
+        "question": "Upset stomach or belly pain or discomfort, during the past week:",
+        "answers": ["Symptom did not occur", "Mild symptom", "Moderate symptom", "Severe symptom"]
+    },
+    {
+        "header": "Below is a list of symptoms people sometimes have. For each item, mark the one that best describes how bothersome the symptom was during the past week for you.\nIf you did not have the problem, please mark \"symptom did not occur.\"",
+        "id" : "15",
+        "question": "General aches or pains, during the past week:",
+        "answers": ["Symptom did not occur", "Mild symptom", "Moderate symptom", "Severe symptom"]
+    },
+    {
+        "header": "Below is a list of symptoms people sometimes have. For each item, mark the one that best describes how bothersome the symptom was during the past week for you.\nIf you did not have the problem, please mark \"symptom did not occur.\"",
+        "id" : "16",
+        "question": "Forgetfulness during the past week:",
+        "answers": ["Symptom did not occur", "Mild symptom", "Moderate symptom", "Severe symptom"]
+    }
+
+]

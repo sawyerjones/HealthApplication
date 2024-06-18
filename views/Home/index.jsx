@@ -35,28 +35,64 @@ export const Home = props => {
   //     Linking.removeEventListener('url', handleOpenURL);
   //   };
   // }, []);
-const [modalVisible, setModalVisible] = useState(false);
+  const [devicesModalVisible, setDevicesModalVisible] = useState(false);
+  const [questionnaireModalVisible, setQuestionnaireModalVisible] = useState(false);
   return (
     <SafeAreaView>
       <View style={styles.titleContainer}>
         {/* <MaterialIcon name="health-and-safety" size={100} color="#85cffe" /> */}
         <Text style={styles.title}>{'HealthApp'}</Text>
       </View>
-      <View style={styles.buttonsContainer}>
-        <TouchableOpacity
-          accessible={true}
-          accessibilityLabel="Questionnaire"
-          accessibilityHint="Navigate To History Page"
-          onPress={() => navigate('Questionnaire')}
+    <View style ={styles.buttonsContainer}> 
+     <TouchableOpacity
+          onPress={() => setQuestionnaireModalVisible(true)}
           style={{
             ...styles.navigationButton,
-            ...styles.navigationButtonQuestionnaire,
+            ...styles.navigationButtonFitbit,
           }}>
-          {/* <AntIcon name="questioncircleo" size={30} color="white"></AntIcon> */}
-          <Text accessible={false} style={styles.navigationButtonText}>
-            Questionnaire
-          </Text>
-        </TouchableOpacity>
+            <Modal
+              animationType="fade"
+              visible={questionnaireModalVisible}
+              onRequestClose={() => setQuestionnaireModalVisible(false)}>
+              <View style={styles.modalContianer}>
+                <TouchableOpacity
+                  onPress={() => navigate('Questionnaire')}
+                  onPressOut={() => setQuestionnaireModalVisible(false)}
+                  style={{
+                    ...styles.navigationButton,
+                    ...styles.navigationButtonFitbit,
+                  }}>
+                    <Text accessible={false} style={styles.navigationButtonText}>
+                      Daily Questionnaire
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => navigate('WeeklyQuestionnaire')}
+                  onPressOut={() => setQuestionnaireModalVisible(false)}
+                  style={{
+                    ...styles.navigationButton,
+                   ...styles.navigationButtoniOSWatch
+                   }}>
+                  <Text accessible={false} style={styles.navigationButtonText}>
+                    Weekly Questionnaire
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPressOut={() => setQuestionnaireModalVisible(false)}
+                  style={{
+                    ...styles.navigationButton,
+                    ...styles.navigationButtonFitbit,
+                  }}>
+                    <Text accessible={false} style={styles.navigationButtonText}>
+                      Cancel
+                    </Text>
+                </TouchableOpacity>
+                </View>
+                </Modal>
+              <Text accessible={false} style={styles.navigationButtonText}>
+              Questionnaires
+              </Text>
+            </TouchableOpacity>
 
         <TouchableOpacity
           accessible={true}
@@ -76,22 +112,22 @@ const [modalVisible, setModalVisible] = useState(false);
           accesible={true}
           accessibilityLabel="Connect to Device"
           accessibilityHint="Initiate Connection to Device"
-          onPress={() => setModalVisible(true)}
+          onPress={() => setDevicesModalVisible(true)}
           style={{
             ...styles.navigationButton,
             ...styles.navigationButtonFitbit,
           }}>
             <Modal
               animationType="fade"
-              visible={modalVisible}
-              onRequestClose={() => setModalVisible(false)}>
+              visible={devicesModalVisible}
+              onRequestClose={() => setiOS(false)}>
               <View style={styles.modalContianer}>
                 <TouchableOpacity
                   accessible={true}
                   accessibilityLabel="Connect to Fitbit"
                   accessibilityHint="Initiate Fitbit Authentication"
                   onPress={initiateFitbitAuth}
-                  onPressOut={() => setModalVisible(false)}
+                  onPressOut={() => setDevicesModalVisible(false)}
                   style={{
                     ...styles.navigationButton,
                     ...styles.navigationButtonFitbit,
@@ -105,7 +141,7 @@ const [modalVisible, setModalVisible] = useState(false);
                   accessibilityLabel="Connect to iOS Watch"
                   accessibilityHint="Initiate iOS Watch Connection"
                   onPress={connectToIOSWatch}
-                  onPressOut={() => setModalVisible(false)}
+                  onPressOut={() => setDevicesModalVisible(false)}
                   style={{
                     ...styles.navigationButton,
                    ...styles.navigationButtoniOSWatch
@@ -118,7 +154,7 @@ const [modalVisible, setModalVisible] = useState(false);
                   accessible={true}
                   accessibilityLabel="Cancel"
                   accessibilityHint="Cancel"
-                  onPressOut={() => setModalVisible(false)}
+                  onPressOut={() => setDevicesModalVisible(false)}
                   style={{
                     ...styles.navigationButton,
                     ...styles.navigationButtonFitbit,

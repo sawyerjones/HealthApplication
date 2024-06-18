@@ -6,13 +6,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Alert, Platform} from 'react-native';
 import {View, StyleSheet, ScrollView} from 'react-native';
 import {Button, Divider, Text, LinearProgress} from '@rneui/themed';
-import DailyQuestionService from '../../services/DailyQuestionService';
+import WeeklyQuestionService from '../../services/WeeklyQuestionService';
 import { HttpStatusCode } from 'axios';
 //import {AnswerService} from '../../services/AnswerService';
 //import Icon from 'react-native-vector-icons/AntDesign';
 
-export const Questionnaire = () => {
-  const questionService = new DailyQuestionService();
+export const WeeklyQuestionnaire = () => {
+  const questionService = new WeeklyQuestionService();
   const TIME_FOR_LOCK = 1500;
 
   const QUESTIONNAIRE_STATES = {

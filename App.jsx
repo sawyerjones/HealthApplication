@@ -2,7 +2,8 @@ import React from 'react';
 import {Home} from './views/Home';
 import {History} from './views/History';
 import {RecordView} from './views/RecordView';
-import {Questionnaire} from './views/Questionnaire';
+import {Questionnaire} from './views/Questionnaire/index';
+import {WeeklyQuestionnaire} from './views/Questionnaire/weeklyIndex'
 import {Header} from './components/Header';
 import {NavigationContainer} from '@react-navigation/native';
 import {StyleSheet} from 'react-native';
@@ -24,6 +25,7 @@ function App() {
         />
         <Stack.Screen name="History" component={History} />
         <Stack.Screen name="Questionnaire" component={Questionnaire} />
+        <Stack.Screen name = "WeeklyQuestionnaire" component={WeeklyQuestionnaire} />
         <Stack.Screen name="RecordView" component={RecordView} />
       </Stack.Navigator>
     </NavigationContainer>
