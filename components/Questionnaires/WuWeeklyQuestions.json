@@ -74,38 +74,39 @@
     {
         "header": "Below is a list of symptoms people sometimes have. For each item, mark the one that best describes how bothersome the symptom was during the past week for you.\nIf you did not have the problem, please mark \"symptom did not occur.\"",
         "id" : "13",
-        "question": "Bloating or gas, during the past week:",
+        "question": "Bloating or gas, during the past week",
         "answers": ["Symptom did not occur", "Mild symptom", "Moderate symptom", "Severe symptom"]
     },
     {
         "header": "Below is a list of symptoms people sometimes have. For each item, mark the one that best describes how bothersome the symptom was during the past week for you.\nIf you did not have the problem, please mark \"symptom did not occur.\"",
         "id" : "14",
-        "question": "Upset stomach or belly pain or discomfort, during the past week:",
+        "question": "Upset stomach or belly pain or discomfort, during the past week",
         "answers": ["Symptom did not occur", "Mild symptom", "Moderate symptom", "Severe symptom"]
     },
     {
         "header": "Below is a list of symptoms people sometimes have. For each item, mark the one that best describes how bothersome the symptom was during the past week for you.\nIf you did not have the problem, please mark \"symptom did not occur.\"",
         "id" : "15",
-        "question": "General aches or pains, during the past week:",
+        "question": "General aches or pains, during the past week",
         "answers": ["Symptom did not occur", "Mild symptom", "Moderate symptom", "Severe symptom"]
     },
     {
         "header": "Below is a list of symptoms people sometimes have. For each item, mark the one that best describes how bothersome the symptom was during the past week for you.\nIf you did not have the problem, please mark \"symptom did not occur.\"",
         "id" : "16",
-        "question": "Forgetfulness during the past week:",
+        "question": "Forgetfulness during the past week",
         "answers": ["Symptom did not occur", "Mild symptom", "Moderate symptom", "Severe symptom"]
     },
     {
         "header": "",
         "id": "17",
-        "question": "Please indicate whether you currently have a menstrual period.",
+        "question": "Please indicate whether you currently have a menstrual period",
         "answers": ["Yes", "No", "N/A (select this option if your sex assigned at birth is male)"]
     },
     {
         "header": "",
         "id": "18",
-        "question": "Please rate the level of your menstrual pain on a scale of 0 to 10 (0 indicates no pain and 10 indicates the highest level of pain).",
-        "answers": ["N/A", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+        "question": "Please rate the level of your menstrual pain on a scale of 0 to 10 (0 indicates no pain and 10 indicates the highest level of pain)",
+        "answers": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+        "disabled" : "false"
     }
 
 ]

@@ -129,6 +129,9 @@ export const WeeklyQuestionnaire = () => {
   };
 
   const selectAnswer = answer => {
+    if (answer === "N/A (select this option if your sex assigned at birth is male)" || answer === "No") {
+      questions[qStatus.questionIdx + 1].disabled = "true";
+    }
       setQStatus(q => {
         const lastAnswerSet = new Date().getTime();
         return {
@@ -254,10 +257,6 @@ export const WeeklyQuestionnaire = () => {
             The Questionnaire consists of multiple multi-choice questions.
           </Text>
           <Text style={{marginBottom: 5, fontSize: 16}}>
-            If you are using an Android phone with the device's voice acess on please TURN VOICE ACCESS OFF
-            while completing the questionnaire. 
-          </Text>
-          <Text style={{marginBottom: 5, fontSize: 16}}>
             For this survey, cold foods are defined as foods below room temperature,
             such as cold salads, cold sandwiches, and sushi. Hot foods are defined as foods at or above 86 to 104°F
             (30-40°C), such as warm sandwiches, warm rice dishes with cooked vegetables, and warm soups.
@@ -300,6 +299,10 @@ export const WeeklyQuestionnaire = () => {
   }
 
   if (qStatus.state == QUESTIONNAIRE_STATES.STARTED) {
+    if (questions[qStatus.questionIdx].disabled == "true") {
+      questions[qStatus.questionIdx].disabled = "false";
+      return nextQuestion();
+    }
     return (
       <View style={styles.containerQuestionnaire}>
         <View style={styles.containerQuestion}>
@@ -308,6 +311,7 @@ export const WeeklyQuestionnaire = () => {
             h3
             style={{
               marginBottom: 10,
+              marginTop: 10,
               color: '#4388d6',
             }}>
             Question {qStatus.questionIdx + 1}
