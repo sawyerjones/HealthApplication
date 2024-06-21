@@ -126,7 +126,6 @@ const Questionnaire = () => {
     } catch (error) {
       console.log('Error stopping Voice', error);
     }
-    Voice.destroy().catch(error => console.log('DESTROYING VOICE FAILED', error));
   };
 
   // VOICE HANDLERS
@@ -826,117 +825,146 @@ const Questionnaire = () => {
   }, [ttsState]);
 
   // Handle hand selection
-  const handleHandSelection = async (choice) => {
-    try {
-      await stopTTSAndVoice();
-      setQStatus((q) => ({
-        ...q,
-        selectedHand: choice,
-        scanStep: 0,
-        state: QUESTIONNAIRE_STATES.TEMPSCAN,
-      }));
-    } catch (error) {
-      console.error('Error in handleHandSelection:', error);
-    }
+  const handleHandSelection = (choice) => {
+    stopTTSAndVoice().then(
+      setQStatus((q) => {
+        const lastAnswerSet = new Date().getTime();
+        return {
+          ...q,
+          selectedHand: choice,
+          scanStep: 0,
+          state: QUESTIONNAIRE_STATES.TEMPSCAN,
+          // state: QUESTIONNAIRE_STATES.SCAN_AI_DETECTION,
+          lastAnswerSet,
+        }
+      })
+    );
   };
 
   // Handle AI detection
-  const handleAIDetection = async (choice) => {
-    try {
-      await stopTTSAndVoice();
-      setQStatus((q) => ({
-        ...q,
-        state: QUESTIONNAIRE_STATES.SCAN_FINGER_SELECTION,
-      }));
-    } catch (error) {
-      console.error('Error in handleAIDetection:', error);
-    }
+  const handleAIDetection = (choice) => {
+    stopTTSAndVoice().then(
+      setQStatus((q) => {
+        const lastAnswerSet = new Date().getTime();
+        return {
+          ...q,
+          state: QUESTIONNAIRE_STATES.SCAN_FINGER_SELECTION,
+          lastAnswerSet,
+        }
+      })
+    );
   };
 
   // Handle finger selection
-  const handleFingerSelection = async (choice) => {
-    try {
-      await stopTTSAndVoice();
-      setQStatus((q) => ({
-        ...q,
-        selectedFinger: choice,
-        scanStep: 1,
-        state: QUESTIONNAIRE_STATES.SCAN_TIP_OF_FINGER,
-      }));
-    } catch (error) {
-      console.error('Error in handleFingerSelection:', error);
-    }
+  const handleFingerSelection = (choice) => {
+    stopTTSAndVoice().then(
+      setQStatus((q) => {
+        const lastAnswerSet = new Date().getTime();
+        return {
+          ...q,
+          selectedFinger: choice,
+          scanStep: 1,
+          state: QUESTIONNAIRE_STATES.SCAN_TIP_OF_FINGER,
+          lastAnswerSet,
+        }
+      })
+    );
   };
 
   // Handle scan of the tip of the finger
-  const handleScanTipOfFinger = async (choice) => {
-    try {
-      await stopTTSAndVoice();
-      setQStatus((q) => ({
-        ...q,
-        scanStep: 2,
-        state: QUESTIONNAIRE_STATES.TEMPSCAN,
-      }));
-    } catch (error) {
-      console.error('Error in handleScanTipOfFinger:', error);
-    }
+  const handleScanTipOfFinger = (choice) => {
+    stopTTSAndVoice().then(
+      setQStatus((q) => {
+        const lastAnswerSet = new Date().getTime();
+        return {
+          ...q,
+          scanStep: 2,
+          state: QUESTIONNAIRE_STATES.TEMPSCAN,
+          // state: QUESTIONNAIRE_STATES.SCAN_PROXIMAL_OF_FINGER,
+          lastAnswerSet,
+        }
+      })
+    );
   };
 
   // Handle scan of the proximal of the finger
-  const handleScanProximalOfFinger = async (choice) => {
-    try {
-      await stopTTSAndVoice();
-      setQStatus((q) => ({
-        ...q,
-        scanStep: 3,
-        state: QUESTIONNAIRE_STATES.TEMPSCAN,
-      }));
-    } catch (error) {
-      console.error('Error in handleScanProximalOfFinger:', error);
-    }
+  const handleScanProximalOfFinger = (choice) => {
+    stopTTSAndVoice().then(
+      setQStatus((q) => {
+        const lastAnswerSet = new Date().getTime();
+        return {
+          ...q,
+          scanStep: 3,
+          state: QUESTIONNAIRE_STATES.TEMPSCAN,
+          // state: QUESTIONNAIRE_STATES.SCAN_ADDITIONAL_FINGER_SELECTION,
+          lastAnswerSet,
+        }
+      })
+    );
   };
 
   // Handle additional finger selection
-  const handleAdditionalFingerSelection = async (choice) => {
-    try {
-      await stopTTSAndVoice();
-      if (choice == 'Yes') {
-        setQStatus((q) => ({
-          ...q,
-          state: QUESTIONNAIRE_STATES.SCAN_FINGER_SELECTION,
-        }));
-      } else {
-        setQStatus((q) => ({
-          ...q,
-          state: QUESTIONNAIRE_STATES.SCAN_ADDITIONAL_HAND_SELECTION,
-        }));
-      }
-    } catch (error) {
-      console.error('Error in handleAdditionalFingerSelection:', error);
+  const handleAdditionalFingerSelection = (choice) => {
+    if (choice == 'Yes') {
+      stopTTSAndVoice().then(
+        setQStatus((q) => {
+          const lastAnswerSet = new Date().getTime();
+          return {
+            ...q,
+            state: QUESTIONNAIRE_STATES.SCAN_FINGER_SELECTION,
+            lastAnswerSet,
+          }
+        })
+      );
+    } else {
+      stopTTSAndVoice().then(
+        setQStatus((q) => {
+          const lastAnswerSet = new Date().getTime();
+          return {
+            ...q,
+            state: QUESTIONNAIRE_STATES.SCAN_ADDITIONAL_HAND_SELECTION,
+            lastAnswerSet,
+          }
+        })
+      );
     }
   };
 
   // Handle additional hand selection
-  const handleAdditionalHandSelection = async (choice) => {
-    try {
-      await stopTTSAndVoice();
-      if (choice == 'Yes') {
-        setQStatus((q) => ({
-          ...q,
-          state: QUESTIONNAIRE_STATES.SCAN_HAND_SELECTION,
-          selectedHand: '',
-          selectedFinger: '',
-          scanStep: 0,
-        }));
-      } else {
-        setQStatus((q) => ({
-          ...q,
-          state: QUESTIONNAIRE_STATES.LOADING,
-        }));
-      }
-    } catch (error) {
-      console.error('Error in handleAdditionalHandSelection:', error);
+  const handleAdditionalHandSelection = (choice) => {
+    if (choice == 'Yes') {
+      stopTTSAndVoice().then(
+        setQStatus((q) => {
+          const lastAnswerSet = new Date().getTime();
+          return {
+            ...q,
+            state: QUESTIONNAIRE_STATES.SCAN_HAND_SELECTION,
+            selectedHand: '',
+            selectedFinger: '',
+            scanStep: 0,
+            lastAnswerSet,
+          }
+        })
+      );
+    } else {
+      stopTTSAndVoice().then(
+        setQStatus((q) => {
+          const lastAnswerSet = new Date().getTime();
+          return {
+            ...q,
+            state: QUESTIONNAIRE_STATES.LOADING,
+            lastAnswerSet,
+          }
+        })
+      );
     }
+  };
+
+  // Calculate average temperature
+  const calculateAverageTemperature = (data) => {
+    const flattenedData = data.flat();
+    const sum = flattenedData.reduce((acc, val) => acc + val, 0);
+    return (sum / flattenedData.length).toFixed(2);
   };
 
   // UI logic and rendering
@@ -1119,7 +1147,10 @@ const Questionnaire = () => {
                   marginBottom: 10,
                 }}
                 key={option}
-                onPress={() => handleHandSelection(option)}
+                onPress={() => {
+                  stopRecording();
+                  handleHandSelection(option);
+                }}
               />
             );
           })}
@@ -1134,7 +1165,10 @@ const Questionnaire = () => {
               backgroundColor: '#ffffff',
             }}
             titleStyle={{ color: '#ff0000', fontSize: 20 }}
-            onPress={cancelQuestionnaire}
+            onPress={() => {
+              stopRecording();
+              cancelQuestionnaire();
+            }}
           />
         </View>
       </View>
@@ -1162,7 +1196,10 @@ const Questionnaire = () => {
                 marginBottom: 10,
               }}
               key={option}
-              onPress={() => handleAIDetection(option)}
+              onPress={() => {
+                stopRecording();
+                handleAIDetection(option);
+              }}
             />
           ))}
         </View>
@@ -1176,7 +1213,10 @@ const Questionnaire = () => {
               backgroundColor: '#ffffff',
             }}
             titleStyle={{ color: '#ff0000', fontSize: 20 }}
-            onPress={cancelQuestionnaire}
+            onPress={() => {
+              stopRecording();
+              cancelQuestionnaire();
+            }}
           />
         </View>
       </View>
@@ -1215,7 +1255,10 @@ const Questionnaire = () => {
                   marginBottom: 10,
                 }}
                 key={option}
-                onPress={() => handleFingerSelection(option)}
+                onPress={() => {
+                  stopRecording();
+                  handleFingerSelection(option);
+                }}
               />
             );
           })}
@@ -1230,7 +1273,10 @@ const Questionnaire = () => {
               backgroundColor: '#ffffff',
             }}
             titleStyle={{ color: '#ff0000', fontSize: 20 }}
-            onPress={cancelQuestionnaire}
+            onPress={() => {
+              stopRecording();
+              cancelQuestionnaire();
+            }}
           />
         </View>
       </View>
@@ -1269,7 +1315,10 @@ const Questionnaire = () => {
                   marginBottom: 10,
                 }}
                 key={option}
-                onPress={() => handleScanTipOfFinger(option)}
+                onPress={() => {
+                  stopRecording();
+                  handleScanTipOfFinger(option);
+                }}
               />
             );
           })}
@@ -1284,7 +1333,10 @@ const Questionnaire = () => {
               backgroundColor: '#ffffff',
             }}
             titleStyle={{ color: '#ff0000', fontSize: 20 }}
-            onPress={cancelQuestionnaire}
+            onPress={() => {
+              stopRecording();
+              cancelQuestionnaire();
+            }}
           />
         </View>
       </View>
@@ -1323,7 +1375,10 @@ const Questionnaire = () => {
                   marginBottom: 10,
                 }}
                 key={option}
-                onPress={() => handleScanProximalOfFinger(option)}
+                onPress={() => {
+                  stopRecording();
+                  handleScanProximalOfFinger(option);
+                }}
               />
             );
           })}
@@ -1338,7 +1393,10 @@ const Questionnaire = () => {
               backgroundColor: '#ffffff',
             }}
             titleStyle={{ color: '#ff0000', fontSize: 20 }}
-            onPress={cancelQuestionnaire}
+            onPress={() => {
+              stopRecording();
+              cancelQuestionnaire();
+            }}
           />
         </View>
       </View>
@@ -1366,7 +1424,10 @@ const Questionnaire = () => {
                 marginBottom: 10,
               }}
               key={option}
-              onPress={() => handleAdditionalFingerSelection(option)}
+              onPress={() => {
+                stopRecording();
+                handleAdditionalFingerSelection(option);
+              }}
             />
           ))}
         </View>
@@ -1380,7 +1441,10 @@ const Questionnaire = () => {
               backgroundColor: '#ffffff',
             }}
             titleStyle={{ color: '#ff0000', fontSize: 20 }}
-            onPress={cancelQuestionnaire}
+            onPress={() => {
+              stopRecording();
+              cancelQuestionnaire();
+            }}
           />
         </View>
       </View>
@@ -1408,7 +1472,10 @@ const Questionnaire = () => {
                 marginBottom: 10,
               }}
               key={option}
-              onPress={() => handleAdditionalHandSelection(option)}
+              onPress={() => {
+                stopRecording();
+                handleAdditionalHandSelection(option);
+              }}
             />
           ))}
         </View>
@@ -1422,7 +1489,10 @@ const Questionnaire = () => {
               backgroundColor: '#ffffff',
             }}
             titleStyle={{ color: '#ff0000', fontSize: 20 }}
-            onPress={cancelQuestionnaire}
+            onPress={() => {
+              stopRecording();
+              cancelQuestionnaire();
+            }}
           />
         </View>
       </View>
@@ -1472,6 +1542,7 @@ const Questionnaire = () => {
           stopRecording();
           setQStatus((q) => {
             const updatedScans = [...q.scans, ...savedScans];
+            const lastAnswerSet = new Date().getTime();
             return {
               ...q,
               scans: updatedScans,
@@ -1485,6 +1556,7 @@ const Questionnaire = () => {
                   : q.scanStep === 3
                   ? QUESTIONNAIRE_STATES.SCAN_ADDITIONAL_FINGER_SELECTION
                   : QUESTIONNAIRE_STATES.FINISHED,
+              lastAnswerSet,
             };
           });
         }}
@@ -1581,10 +1653,18 @@ const Questionnaire = () => {
                     {new Date(scan.timestamp).toLocaleString()}
                   </Text>
                 </Text>
+                {scan.description.includes("Finger") && (
+                  <Text style={{ fontSize: 20, color: '#4388d6' }}>
+                    Average Temperature:{' '}
+                    <Text style={{ fontSize: 15 }}>
+                      {calculateAverageTemperature(scan.data)} °C
+                    </Text>
+                  </Text>
+                )}
                 <Divider
                   inset={true}
                   insetType='middle'
-                  style={{ marginBottom: 10, marginTop: 10, }}
+                  style={{ marginBottom: 10, marginTop: 10 }}
                 />
               </View>
             ))}

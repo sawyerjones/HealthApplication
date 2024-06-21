@@ -32,7 +32,7 @@ export const Temperature = ({ onContinue, selectedHand, selectedFinger, scanStep
         }
         await sendControlCommand('START');
         await startNotification();
-        startVoiceInstructions();
+        
       };
 
       const stopMeasurement = async () => {
@@ -44,6 +44,7 @@ export const Temperature = ({ onContinue, selectedHand, selectedFinger, scanStep
 
       // Start measurement when the screen is focused
       startMeasurement();
+      startVoiceInstructions();
 
       // Stop measurement when the screen is unfocused
       return () => {
@@ -88,8 +89,10 @@ export const Temperature = ({ onContinue, selectedHand, selectedFinger, scanStep
   }, [shouldSave]);
 
   const startVoiceInstructions = () => {
-    TTS.speak("Say Save or press the save scan button to save the scan", {
-      onDone: startVoiceRecognition
+    TTS.getInitStatus().then(() => {
+      TTS.speak("Say Save or press the save scan button to save the scan", {
+        onDone: startVoiceRecognition
+      });
     });
   };
 
@@ -124,9 +127,11 @@ export const Temperature = ({ onContinue, selectedHand, selectedFinger, scanStep
   }, []);
 
   const cleanupVoice = () => {
-    Voice.destroy().catch(error => console.error('Failed to destroy voice:', error));
+    
     TTS.stop().catch(error => console.error('Failed to stop TTS:', error));
     Voice.stop();
+    Voice.destroy().catch(error => console.error('Failed to destroy voice:', error));
+    Voice.removeAllListeners();
   };
 
   const getFillColor = (temp) => {
@@ -190,6 +195,7 @@ export const Temperature = ({ onContinue, selectedHand, selectedFinger, scanStep
     TTS.stop();
     Voice.stop();
     Voice.destroy().catch(error => console.log('DESTROYING VOICE FAILED', error));
+    Voice.removeAllListeners();
   };
 
   return (

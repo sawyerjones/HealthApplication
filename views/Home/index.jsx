@@ -155,8 +155,8 @@ const [modalVisible, setModalVisible] = useState(false);
             </TouchableOpacity>
         <TouchableOpacity
           accessible={true}
-          accessibilityLabel="Connect to Bluetooth"
-          accessibilityHint="Manage Bluetooth Connection"
+          accessibilityLabel="Connect to Sensor"
+          accessibilityHint="Manage Sensor Connection"
           onPress={() => navigate('BluetoothConnect')}
           style={{
             ...styles.navigationButton,
