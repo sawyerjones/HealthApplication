@@ -89,11 +89,11 @@ _To set up the app on your local machine your app. This application doesn't rely
    ```
 
    or
-   donwload the zip file with the code from https://github.com/RamazTs/HealthApplication
+   download the zip file with the code from https://github.com/RamazTs/HealthApplication
 
 2. Install NPM packages
 
-   cd into the code repository and run "npm insall" in the terminal in the root of the project directory
+   cd into the code repository and run "npm install" in the terminal in the root of the project directory
 
 3. Install pods.
 
