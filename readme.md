@@ -85,7 +85,7 @@ _To set up the app on your local machine your app. This application doesn't rely
 1. Clone the repository
 
    ```sh
-   git clone https://github.com/RamazTs/HealthApplication.git
+   git clone https://github.com/sawyerjones/HealthApplication
    ```
 
    or
