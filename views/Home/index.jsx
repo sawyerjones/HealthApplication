@@ -147,6 +147,19 @@ const [modalVisible, setModalVisible] = useState(false);
                     Connect to iOS Watch
                   </Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  accessible={true}
+                  accessibilityLabel="Cancel"
+                  accessibilityHint="Cancel"
+                  onPressOut={() => setModalVisible(false)}
+                  style={{
+                    ...styles.navigationButton,
+                    ...styles.navigationButtonFitbit,
+                  }}>
+                    <Text accessible={false} style={styles.navigationButtonText}>
+                      Cancel
+                  </Text>
+                </TouchableOpacity>
                 </View>
                 </Modal>
               <Text accessible={false} style={styles.navigationButtonText}>
