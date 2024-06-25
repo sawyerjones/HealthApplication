@@ -30,6 +30,7 @@ const Questionnaire = () => {
     SCAN_PROXIMAL_OF_FINGER: 'SCAN_PROXIMAL_OF_FINGER',
     SCAN_ADDITIONAL_FINGER_SELECTION: 'SCAN_ADDITIONAL_FINGER_SELECTION',
     SCAN_ADDITIONAL_HAND_SELECTION: 'SCAN_ADDITIONAL_HAND_SELECTION',
+    SCAN_CONFIRMATION: 'SCAN_CONFIRMATION',
   };
 
   const TTS_STATES = {
@@ -331,7 +332,7 @@ const Questionnaire = () => {
       console.log('TTS stop failed at next question');
     }
     if (qStatus.questionIdx + 1 >= questions.length) {
-      return setQStatus((q) => ({ ...q, state: QUESTIONNAIRE_STATES.SCAN_HAND_SELECTION }));
+      return setQStatus((q) => ({ ...q, state: QUESTIONNAIRE_STATES.SCAN_CONFIRMATION }));
     }
     setQStatus((q) => ({ ...q, questionIdx: q.questionIdx + 1 }));
   };
@@ -430,6 +431,15 @@ const Questionnaire = () => {
       .join();
     TTS.getInitStatus().then(() => {
       TTS.speak(text + ans);
+    });
+  };
+
+  // Read the scan confirmation prompt
+  const readScanConfirmation = async () => {
+    const text = 'Do you want to proceed with the scan?';
+    const options = 'choice 1, Yes; choice 2, No;';
+    TTS.getInitStatus().then(() => {
+      TTS.speak(text + ' ' + options);
     });
   };
 
@@ -559,6 +569,32 @@ const Questionnaire = () => {
     if (!text) return;
     console.log('Recognized text:', text);
     const lowercaseText = text.toLowerCase();
+
+    if (qStatus.state === QUESTIONNAIRE_STATES.SCAN_CONFIRMATION) {
+      const choiceNumber = getChoiceFromSpeech(lowercaseText);
+      if (choiceNumber && choiceNumber <= 2) {
+        handleScanConfirmation(['Yes', 'No'][choiceNumber - 1]);
+        return;
+      }
+
+      const words = lowercaseText.split(' ');
+      const number = words[words.length - 1];
+      if (numbersInWords[number] && numbersInWords[number] <= 2) {
+        handleScanConfirmation(['Yes', 'No'][numbersInWords[number] - 1]);
+        return;
+      }
+
+      if (lowercaseText.includes('yes')) {
+        handleScanConfirmation('Yes');
+        return;
+      }
+
+      if (lowercaseText.includes('no')) {
+        handleScanConfirmation('No');
+        return;
+      }
+      return;
+    }
 
     if (qStatus.state === QUESTIONNAIRE_STATES.SCAN_HAND_SELECTION) {
       const choiceNumber = getChoiceFromSpeech(lowercaseText);
@@ -763,6 +799,10 @@ const Questionnaire = () => {
       if (qStatus.questionIdx === 0) readQuestion();
     }
 
+    if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_CONFIRMATION) {
+      readScanConfirmation();
+    }
+
     if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_HAND_SELECTION) {
       readHandSelection();
     }
@@ -823,6 +863,33 @@ const Questionnaire = () => {
       }
     }
   }, [ttsState]);
+
+  // Handle scan confirmation
+  const handleScanConfirmation = (choice) => {
+    if (choice == 'Yes') {
+      stopTTSAndVoice().then(
+        setQStatus((q) => {
+          const lastAnswerSet = new Date().getTime();
+          return {
+            ...q,
+            state: QUESTIONNAIRE_STATES.SCAN_HAND_SELECTION,
+            lastAnswerSet,
+          };
+        })
+      );
+    } else {
+      stopTTSAndVoice().then(
+        setQStatus((q) => {
+          const lastAnswerSet = new Date().getTime();
+          return {
+            ...q,
+            state: QUESTIONNAIRE_STATES.LOADING,
+            lastAnswerSet,
+          };
+        })
+      );
+    }
+  };
 
   // Handle hand selection
   const handleHandSelection = (choice) => {
@@ -1105,6 +1172,66 @@ const Questionnaire = () => {
               color: '#ff0000',
               fontSize: 20,
             }}
+            onPress={() => {
+              stopRecording();
+              cancelQuestionnaire();
+            }}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_CONFIRMATION) {
+    return (
+      <View style={styles.containerQuestionnaire}>
+        <View style={styles.containerQuestion}>
+          <Text
+            h3
+            style={{
+              marginBottom: 10,
+              color: '#4388d6',
+            }}
+          >
+            Do you want to proceed with the scan?
+          </Text>
+        </View>
+        <View accessible={Platform.OS === 'android' ? true : false}>
+          {['Yes', 'No'].map((option, index) => {
+            return (
+              <Button
+                title={`${index + 1}. ${option}`}
+                accessible={Platform.OS === 'android' ? true : false}
+                accessibilityLabelledBy={index + 1}
+                titleStyle={{
+                  color: 'white',
+                  fontSize: 25,
+                  fontWeight: 'bold',
+                }}
+                containerStyle={{
+                  borderRadius: 10,
+                  width: 300,
+                  marginBottom: 10,
+                }}
+                key={option}
+                onPress={() => {
+                  stopRecording();
+                  handleScanConfirmation(option);
+                }}
+              />
+            );
+          })}
+        </View>
+        <View style={{ marginTop: 20 }}>
+          <Button
+            title='Cancel Questionnaire'
+            buttonStyle={{
+              borderWidth: 1,
+              borderColor: '#ff0000',
+              borderRadius: 10,
+              backgroundColor: '#ffffff',
+            }}
+            titleStyle={{ color: '#ff0000', fontSize: 20 }}
             onPress={() => {
               stopRecording();
               cancelQuestionnaire();
@@ -1636,39 +1763,41 @@ const Questionnaire = () => {
             );
           })}
 
-          {/* Display saved scans */}
-          <View style={{ marginTop: 20 }}>
-            <Text h3 style={{ color: '#4388d6', marginBottom: 12 }}>
-              Saved Scans
-            </Text>
-            {qStatus.scans.map((scan) => (
-              <View key={scan.key} style={{ marginBottom: 15 }}>
-                <Text style={{ fontSize: 20, color: '#4388d6' }}>
-                  Description:{' '}
-                  <Text style={{ fontSize: 15 }}>{scan.description}</Text>
-                </Text>
-                <Text style={{ fontSize: 20, color: '#4388d6' }}>
-                  Timestamp:{' '}
-                  <Text style={{ fontSize: 15 }}>
-                    {new Date(scan.timestamp).toLocaleString()}
-                  </Text>
-                </Text>
-                {scan.description.includes("Finger") && (
+          {/* Display saved scans only if there are scans */}
+          {qStatus.scans.length > 0 && (
+            <View style={{ marginTop: 20 }}>
+              <Text h3 style={{ color: '#4388d6', marginBottom: 12 }}>
+                Saved Scans
+              </Text>
+              {qStatus.scans.map((scan) => (
+                <View key={scan.key} style={{ marginBottom: 15 }}>
                   <Text style={{ fontSize: 20, color: '#4388d6' }}>
-                    Average Temperature:{' '}
+                    Description:{' '}
+                    <Text style={{ fontSize: 15 }}>{scan.description}</Text>
+                  </Text>
+                  <Text style={{ fontSize: 20, color: '#4388d6' }}>
+                    Timestamp:{' '}
                     <Text style={{ fontSize: 15 }}>
-                      {calculateAverageTemperature(scan.data)} °C
+                      {new Date(scan.timestamp).toLocaleString()}
                     </Text>
                   </Text>
-                )}
-                <Divider
-                  inset={true}
-                  insetType='middle'
-                  style={{ marginBottom: 10, marginTop: 10 }}
-                />
-              </View>
-            ))}
-          </View>
+                  {scan.description.includes("Finger") && (
+                    <Text style={{ fontSize: 20, color: '#4388d6' }}>
+                      Average Temperature:{' '}
+                      <Text style={{ fontSize: 15 }}>
+                        {calculateAverageTemperature(scan.data)} °C
+                      </Text>
+                    </Text>
+                  )}
+                  <Divider
+                    inset={true}
+                    insetType='middle'
+                    style={{ marginBottom: 10, marginTop: 10 }}
+                  />
+                </View>
+              ))}
+            </View>
+          )}
 
           <View style={styles.constinerResultsButtons}>
             <Button
