@@ -16,6 +16,7 @@ export const Questionnaire = () => {
   const QUESTIONNAIRE_STATES = {
     BEFORE_STARTING: 'BEFORE_STARTING',
     STARTED: 'START',
+    PAUSED: 'PAUSED',
     LOADING: 'LOADING',
     FINISHED: 'FINISHED',
     SAVING: 'SAVING',
@@ -171,6 +172,15 @@ export const Questionnaire = () => {
     });
   };
 
+  const pauseQuestionnaire = async () => {
+    setQStatus({
+      state: QUESTIONNAIRE_STATES.PAUSED,
+      questionIdx: qStatus.questionIdx,
+      answeredQuestions: qStatus.answeredQuestions,
+      externalData: qStatus.externalData,
+    });
+  };
+
   const saveData = async () => {
     // TODO: ADD LOADING
     const history = await AsyncStorage.getItem('history');
@@ -299,6 +309,63 @@ export const Questionnaire = () => {
     );
   }
 
+  if (qStatus.state == QUESTIONNAIRE_STATES.PAUSED) {
+    return ( 
+    <View style={styles.containerStart}>
+      <View style={styles.constainerInstructions}>
+        <Text
+          h3
+          style={{
+            marginBottom: 10,
+            color: '#4388d6',
+          }}>
+          Instructions
+        </Text>
+        <Text style={{marginBottom: 5, fontSize: 16}}>
+          The Questionnaire consists of multiple multi-choice questions.
+        </Text>
+        <Text style={{marginBottom: 5, fontSize: 16}}>
+          For this survey, cold foods are defined as foods below room temperature,
+          such as cold salads, cold sandwiches, and sushi. Hot foods are defined as foods at or above 86 to 104°F
+          (30-40°C), such as warm sandwiches, warm rice dishes with cooked vegetables, and warm soups.
+        </Text>
+        <Text style={{marginBottom: 5, fontSize:16}}>
+          Additionally, please refer to this key to diagnose your symptoms:
+          {"\n"}Mild = symptom did not interfere with usual activities.
+          {"\n"}Moderate = symptom interfered somewhat with usual activities.
+          {"\n"}Severe = symptom was so bothersome that usual activities could not be performed.
+        </Text>
+        <Text style={{marginBottom: 5, fontSize: 16}}>
+          After going though the questionnaire you can save your answers and
+          view them in the history page or restart the questionnaire from the
+          beginning.
+        </Text>
+        
+        <Text style={{fontSize: 16}}>
+          Press the <Text style={{color: '#4388d6'}}>blue</Text> button below to
+          resume the questionnaire
+        </Text>
+      </View>
+      <View>
+        <Button
+          title="Resume"
+          size="lg"
+          titleStyle={{
+            color: 'white',
+            fontSize: 25,
+            fontWeight: 'bold',
+          }}
+          containerStyle={{
+            borderRadius: 30,
+            width: 300,
+          }}
+          onPress={startQuestionnaire}
+        />
+      </View>
+    </View>
+  );
+  }
+
   if (qStatus.state == QUESTIONNAIRE_STATES.STARTED) {
     if (questions[qStatus.questionIdx].disabled == "true") {
       questions[qStatus.questionIdx].disabled = "false";
@@ -307,7 +374,22 @@ export const Questionnaire = () => {
     return (
       <View style={styles.containerQuestionnaire}>
         <View style={styles.containerQuestion}>
-
+          <View style={styles.containerButton}>
+            <Button
+                  title="Instructions"
+                  buttonStyle={{
+                    borderWidth: 1,
+                    borderColor: '#4388d6',
+                    borderRadius: 10,
+                    backgroundColor: '#ffffff',
+                  }}
+                  titleStyle={{
+                    color: '#4388d6',
+                    fontSize: 20,
+                  }}
+                  onPress={pauseQuestionnaire}
+                />
+          </View>
         <Text
             h3
             style={{
@@ -372,7 +454,7 @@ export const Questionnaire = () => {
           />
         </View>
       )}
-        <View style={{marginTop: 20, marginBottom: 40}}>
+        <View style={{marginTop: 10, marginBottom: 40}}>
           <Button
             title="Cancel Questionnaire"
             buttonStyle={{
@@ -587,5 +669,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     margin: 10,
+  },
+  
+  containerButton: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    zIndex: 2,
   },
 });
