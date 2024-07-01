@@ -1,25 +1,36 @@
-import {useEffect, useState} from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Voice from '@react-native-voice/voice';
 import TTS from 'react-native-tts';
 import Geolocation from '@react-native-community/geolocation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {Alert, Platform} from 'react-native';
-import {View, StyleSheet, ScrollView} from 'react-native';
-import {Button, Divider, Text, LinearProgress} from '@rneui/themed';
+import { Alert, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
+import { Button, Divider, Text, LinearProgress } from '@rneui/themed';
 import QuestionService from '../../services/QuestionService';
-// import Icon from 'react-native-vector-icons/AntDesign';
+import { Temperature } from '../../components/Temperature';
+import BleManager from 'react-native-ble-manager';
+import { useFocusEffect } from '@react-navigation/native';
 
-export const Questionnaire = () => {
+const Questionnaire = () => {
   const questionService = new QuestionService();
   const TIME_FOR_LOCK = 1500;
 
   const QUESTIONNAIRE_STATES = {
     BEFORE_STARTING: 'BEFORE_STARTING',
-    STARTED: 'START',
+    STARTED: 'STARTED',
     LOADING: 'LOADING',
     FINISHED: 'FINISHED',
     SAVING: 'SAVING',
     SAVED: 'SAVED',
+    TEMPSCAN: 'TEMPSCAN',
+    SCAN_HAND_SELECTION: 'SCAN_HAND_SELECTION',
+    SCAN_AI_DETECTION: 'SCAN_AI_DETECTION',
+    SCAN_FINGER_SELECTION: 'SCAN_FINGER_SELECTION',
+    SCAN_TIP_OF_FINGER: 'SCAN_TIP_OF_FINGER',
+    SCAN_PROXIMAL_OF_FINGER: 'SCAN_PROXIMAL_OF_FINGER',
+    SCAN_ADDITIONAL_FINGER_SELECTION: 'SCAN_ADDITIONAL_FINGER_SELECTION',
+    SCAN_ADDITIONAL_HAND_SELECTION: 'SCAN_ADDITIONAL_HAND_SELECTION',
+    SCAN_CONFIRMATION: 'SCAN_CONFIRMATION',
   };
 
   const TTS_STATES = {
@@ -46,6 +57,7 @@ export const Questionnaire = () => {
   const VOICE_COMMANDS = {
     PREVIOUS_QUESTION: 'previous question',
     CANCEL_QUESTIONNAIRE: 'cancel questionnaire',
+    BEGIN_QUESTIONNAIRE: 'begin',
   };
 
   // RECORDING
@@ -61,67 +73,93 @@ export const Questionnaire = () => {
   // QUESTIONS
   const [questions, setQuestions] = useState([]);
 
-  // QUESTIONAIRE STATUS
+  // QUESTIONNAIRE STATUS
   const [qStatus, setQStatus] = useState({
     state: QUESTIONNAIRE_STATES.BEFORE_STARTING,
     questionIdx: 0,
     answeredQuestions: [],
     externalData: {},
     lastAnswerSet: 0,
+    selectedHand: '',
+    selectedFinger: '',
+    scanStep: 0,
+    scans: [], // Store all scans
   });
 
-  const stopRecording = () => {
-    return Voice.stop();
+  const initializeVoiceHandlers = useCallback(() => {
+    Voice.onSpeechStart = onSpeechStart;
+    Voice.onSpeechEnd = onSpeechEnd;
+    Voice.onSpeechResults = onSpeechPartialResults;
+    Voice.onSpeechError = onSpeechError;
+  }, []);
+
+  // Stop the voice recording
+  const stopRecording = async () => {
+    try {
+      await Voice.stop();
+    } catch (error) {
+      console.error('Error stopping Voice recording', error);
+    }
   };
 
-  const startRecording = () => {
-    // setIsRecording(true);
-    Voice.start('en-US');
-    setTimeout(() => {
-      stopRecording();
-      // setIsRecording(false);
-    }, 5000); // Stop the recording after 5 seconds
+  // Start the voice recording
+  const startRecording = async () => {
+    try {
+      console.log('Start recording called');
+      await Voice.start('en-US');
+      setTimeout(() => {
+        stopRecording();
+      }, 5000); // Stop the recording after 5 seconds
+    } catch (error) {
+      console.error('Error starting Voice recording', error);
+    }
+  };
+
+  // Stop TTS and Voice
+  const stopTTSAndVoice = async () => {
+    try {
+      await TTS.stop();
+    } catch (error) {
+      console.log('Error stopping TTS', error);
+    }
+    try {
+      await Voice.stop();
+    } catch (error) {
+      console.log('Error stopping Voice', error);
+    }
   };
 
   // VOICE HANDLERS
-  function onSpeechStart(e) {
+  const onSpeechStart = (e) => {
     console.log('onSpeechStart: ', e);
-  }
-  function onSpeechEnd(e) {
+  };
+
+  const onSpeechEnd = (e) => {
     console.log('onSpeechEnd: ', e);
-  }
-  function onSpeechPartialResults(e) {
+  };
+
+  const onSpeechPartialResults = (e) => {
     console.log('onSpeechPartialResults: ', e);
     const milis = new Date().getTime();
-    // if (!isRecording) return; // Ignore results if not recording
-    // console.log('onSpeechPartialResults: ', e);
-  const result = e.value[0].toLowerCase();
-  if (result.includes(VOICE_COMMANDS.PREVIOUS_QUESTION)) {
-    goToPreviousQuestion();
-  } else if (result.includes(VOICE_COMMANDS.CANCEL_QUESTIONNAIRE)) {
-    cancelQuestionnaire();
-
-  }
-    setPartialResults(prevState => {
-      // TODO:
-      // HACK 3: LOCKING INPUT FROM VOICE IF WE HAVE DUPLICATE RESULTS FIRING. THIS IS CAUSED BY VOICE ENGINE GENERATING CONTEXT AND POTENTIALLY ALTERING THE SENTENCE
-      // SOMETIMES ALTERATIONS IN THE RESULTS DO NOT HAPPEN AND THE SAME RESULT IS FIRED TWICE
+    const result = e.value[0].toLowerCase();
+    if (result.includes(VOICE_COMMANDS.PREVIOUS_QUESTION)) {
+      stopRecording();
+      goToPreviousQuestion();
+    } else if (result.includes(VOICE_COMMANDS.CANCEL_QUESTIONNAIRE)) {
+      stopRecording();
+      cancelQuestionnaire();
+    } else if (result.includes(VOICE_COMMANDS.BEGIN_QUESTIONNAIRE)) {
+      stopRecording();
+      startQuestionnaire(); // Start the questionnaire if the voice command is recognized
+    }
+    setPartialResults((prevState) => {
       if (
         prevState &&
         e.value[0] === prevState.results[0] &&
         milis - prevState.collectedAt <= TIME_FOR_LOCK
       ) {
-        // console.log(
-        //   'returning',
-        //   prevState,
-        //   e.value[0] === prevState.results[0],
-        //   milis - prevState.collectedAt <= 1000,
-        // );
         return prevState;
       }
-
-      // TODO:
-      // HACK 2: check for case when For and Four are fired sequenctially (we transform the text of previous answer and current answer to numerical values and compare the two)
       if (prevState && milis - prevState.collectedAt <= TIME_FOR_LOCK) {
         const newText = e.value[0];
         const oldText = prevState.results[0];
@@ -139,33 +177,33 @@ export const Questionnaire = () => {
         }
       }
       console.log('Setting new value: ', e.value);
-      return {results: e.value, collectedAt: milis};
+      return { results: e.value, collectedAt: milis };
     });
-  }
+  };
 
-  function onSpeechError(e) {
+  const onSpeechError = (e) => {
     console.log('onSpeechError', e);
-  }
+  };
 
   // TTS HANDLERS
-  function ttsStartHandler(e) {
+  const ttsStartHandler = (e) => {
     console.log('TTS STARTED');
     setTtsState(TTS_STATES.STARTED);
-  }
+  };
 
-  function ttsFinishHandler(e) {
+  const ttsFinishHandler = (e) => {
     console.log('TTS FINISHED: ', e);
     setTtsState(TTS_STATES.FINISHED);
-  }
+  };
 
-  function ttsCancelHandler(e) {
+  const ttsCancelHandler = (e) => {
     console.log('TTS CANCELLED: ', e);
     setTtsState(TTS_STATES.CANCELLED);
-  }
+  };
 
+  // Initialization and cleanup logic
   useEffect(() => {
-    // INIT FUNCTION
-    async function init() {
+    const init = async () => {
       try {
         const ttsInitStatus = await TTS.getInitStatus();
         if (!ttsInitStatus) {
@@ -174,26 +212,19 @@ export const Questionnaire = () => {
         TTS.addEventListener('tts-start', ttsStartHandler);
         TTS.addEventListener('tts-finish', ttsFinishHandler);
         TTS.addEventListener('tts-cancel', ttsCancelHandler);
+        TTS.setDefaultLanguage('en-US');
       } catch (error) {
-        // TODO: HANDLE ERRORS IN TTS INITIALIZATION
         console.log('TTS INITIALIZATION ERROR', error);
       }
-      Voice.onSpeechStart = onSpeechStart;
-      Voice.onSpeechEnd = onSpeechEnd;
-
-      if (Platform.OS === 'android')
-        Voice.onSpeechResults = onSpeechPartialResults;
-      else Voice.onSpeechPartialResults = onSpeechPartialResults;
-      Voice.onSpeechError = onSpeechError;
+      initializeVoiceHandlers();
 
       try {
         const questions = await questionService.fetchQuestions();
         setQuestions(questions);
       } catch (error) {
-        //TODO: HANDLE ERRORS WHEN QUESTIONS CAN NOT BE FETCHED
         console.log('QUESTION FETCH ERROR', error);
       }
-    }
+    };
     init();
 
     return () => {
@@ -202,16 +233,28 @@ export const Questionnaire = () => {
         TTS.removeEventListener('tts-finish', ttsFinishHandler);
         TTS.removeEventListener('tts-cancel', ttsCancelHandler);
       }
-      TTS.stop().catch(error => console.log('TTS STOP FAILED', error));
-      Voice.destroy().catch(error =>
-        console.log('DESTORYING VOICE FAILED', error),
+      stopTTSAndVoice();
+      Voice.destroy().catch((error) =>
+        console.log('DESTROYING VOICE FAILED', error)
       );
     };
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      initializeVoiceHandlers();
+      startRecording();
+
+      return () => {
+        stopTTSAndVoice();
+      };
+    }, [initializeVoiceHandlers])
+  );
+
+  // Fetch weather information based on geolocation
   const getWeather = async (lat, lon) => {
     const weatherResponse = await fetch(
-      `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=0bb2954984e58b4696605e92623b8626`,
+      `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=0bb2954984e58b4696605e92623b8626`
     );
     const weatherData = await weatherResponse.json();
     return {
@@ -222,6 +265,7 @@ export const Questionnaire = () => {
     };
   };
 
+  // Fetch geolocation
   const fetchGeoLocation = async () => {
     return new Promise((resolve, reject) => {
       Geolocation.getCurrentPosition((info, error) => {
@@ -233,6 +277,7 @@ export const Questionnaire = () => {
     });
   };
 
+  // Get external information (location and weather)
   const getExternalInformation = async () => {
     let location = {},
       weather = {};
@@ -247,7 +292,7 @@ export const Questionnaire = () => {
     try {
       weather = await getWeather(
         location.coords.latitude,
-        location.coords.longitude,
+        location.coords.longitude
       );
     } catch (ex) {
       console.error('could not fetch weather', ex);
@@ -256,8 +301,8 @@ export const Questionnaire = () => {
     return [location, weather];
   };
 
+  // Navigate to the previous question
   const goToPreviousQuestion = async () => {
-    // Stop any ongoing recording or TTS
     setIsManualNavigation(true);
     try {
       await TTS.stop();
@@ -265,20 +310,20 @@ export const Questionnaire = () => {
       console.log('Error stopping TTS in goToPreviousQuestion', error);
     }
 
-    setQStatus(q => {
-      if (q.questionIdx === 0) return q; // Check to prevent index going below 0
+    setQStatus((q) => {
+      if (q.questionIdx === 0) return q;
       const newIdx = q.questionIdx - 1;
       const updatedAnsweredQuestions = q.answeredQuestions.slice(0, newIdx);
       return {
         ...q,
         questionIdx: newIdx,
         answeredQuestions: updatedAnsweredQuestions,
-        state: QUESTIONNAIRE_STATES.STARTED, 
+        state: QUESTIONNAIRE_STATES.STARTED,
       };
     });
   };
-  
 
+  // Navigate to the next question
   const nextQuestion = async () => {
     setIsManualNavigation(true);
     try {
@@ -286,18 +331,16 @@ export const Questionnaire = () => {
     } catch (error) {
       console.log('TTS stop failed at next question');
     }
-    // if (isRecording) {
-    //   await new Promise(resolve => setTimeout(resolve, 5000));
-    // }
     if (qStatus.questionIdx + 1 >= questions.length) {
-      return setQStatus(q => ({...q, state: QUESTIONNAIRE_STATES.LOADING}));
+      return setQStatus((q) => ({ ...q, state: QUESTIONNAIRE_STATES.SCAN_CONFIRMATION }));
     }
-    setQStatus(q => ({...q, questionIdx: q.questionIdx + 1}));
+    setQStatus((q) => ({ ...q, questionIdx: q.questionIdx + 1 }));
   };
 
-  const selectAnswer = answer => {
+  // Select an answer for the current question
+  const selectAnswer = (answer) => {
     stopRecording().then(
-      setQStatus(q => {
+      setQStatus((q) => {
         const lastAnswerSet = new Date().getTime();
         return {
           ...q,
@@ -310,67 +353,169 @@ export const Questionnaire = () => {
           ],
           lastAnswerSet,
         };
-      }),
+      })
     );
     setIsManualNavigation(false);
   };
 
+  // Get the choice number from the speech text
   function getChoiceFromSpeech(text) {
     const match = text.match(/choice (\d+)/i);
     return match ? parseInt(match[1], 10) : null;
   }
 
+  // Start the questionnaire
   const startQuestionnaire = () => {
-    return setQStatus(q => ({...q, state: QUESTIONNAIRE_STATES.STARTED}));
+    stopRecording();
+    return setQStatus((q) => ({ ...q, state: QUESTIONNAIRE_STATES.STARTED }));
   };
 
-  const restartQuestionnaire = () => {
+  // Restart the questionnaire
+  const restartQuestionnaire = async () => {
+    try {
+      await stopTTSAndVoice();
+    } catch (error) {
+      console.error('Error stopping TTS or Voice:', error);
+    }
+
     setQStatus({
       state: QUESTIONNAIRE_STATES.BEFORE_STARTING,
       questionIdx: 0,
       answeredQuestions: [],
       externalData: {},
+      scans: [],
     });
+
+    TTS.setDefaultLanguage('en-US');
+    initializeVoiceHandlers();
+
+    setTimeout(() => {
+      startRecording();
+    }, 100);
   };
 
+  // Cancel the questionnaire
   const cancelQuestionnaire = async () => {
     try {
-      await TTS.stop();
-      await stopRecording();
+      await stopTTSAndVoice();
     } catch (error) {
-      console.error("Error cancelling TTS or Voice recording:", error);
+      console.error('Error stopping TTS or Voice:', error);
     }
-  
+
     setQStatus({
       state: QUESTIONNAIRE_STATES.BEFORE_STARTING,
       questionIdx: 0,
       answeredQuestions: [],
       externalData: {},
+      scans: [],
     });
+
+    TTS.setDefaultLanguage('en-US');
+    initializeVoiceHandlers();
+
+    setTimeout(() => {
+      startRecording();
+    }, 100);
   };
 
+  // Read the current question and its answers
   const readQuestion = async () => {
-    const {question, answers} = questions[qStatus.questionIdx];
-
+    const { question, answers } = questions[qStatus.questionIdx];
     const text =
       'Question ' + (qStatus.questionIdx + 1) + ', ' + question + '; ';
-
     const ans = answers
       .map((ans, index) => {
         if (qStatus.questionIdx == 0) return index + 1 + ', ' + ans;
-        return 'choice ' + (index + 1) + ', ';
+        return 'choice ' + (index + 1) + ', ' + ans;
       })
       .join();
-
     TTS.getInitStatus().then(() => {
       TTS.speak(text + ans);
     });
   };
 
+  // Read the scan confirmation prompt
+  const readScanConfirmation = async () => {
+    const text = 'Do you want to proceed with the scan?';
+    const options = 'choice 1, Yes; choice 2, No;';
+    TTS.getInitStatus().then(() => {
+      TTS.speak(text + ' ' + options);
+    });
+  };
+
+  // Read the hand selection prompt
+  const readHandSelection = async () => {
+    const text = 'Which hand do you want to scan?';
+    const options = 'choice 1, Left; choice 2, Right;';
+    TTS.getInitStatus().then(() => {
+      TTS.speak(text + ' ' + options);
+    });
+  };
+
+  // Read the AI detection prompt
+  const readAIDetection = async () => {
+    const text = 'The AI detected, that PLACEHOLDER fingers have symptoms';
+    const options = 'choice 1, Yes; choice 2, No;';
+    TTS.getInitStatus().then(() => {
+      TTS.speak(text + ' ' + options);
+    });
+  };
+
+  // Read the finger selection prompt
+  const readFingerSelection = async () => {
+    const text = 'Which finger do you want to scan?';
+    const options =
+      'choice 1, Thumb; choice 2, Index; choice 3, Middle; choice 4, Ring; choice 5, Pinky;';
+    TTS.getInitStatus().then(() => {
+      TTS.speak(text + ' ' + options);
+    });
+  };
+
+  // Read the prompt to scan the tip of the finger
+  const readTipOfFinger = async () => {
+    const text = 'Please scan the tip of your finger';
+    const options = 'Say or press Start;';
+    TTS.getInitStatus().then(() => {
+      TTS.speak(text + ' ' + options);
+    });
+  };
+
+  // Read the prompt to scan the proximal of the finger
+  const readProximalOfFinger = async () => {
+    const text = 'Please scan the proximal of your finger';
+    const options = 'Say or press Start;';
+    TTS.getInitStatus().then(() => {
+      TTS.speak(text + ' ' + options);
+    });
+  };
+
+  // Read the prompt to scan an additional finger
+  const readAdditionalFingerSelection = async () => {
+    const text = 'Do you want to scan another Finger?';
+    const options = 'choice 1, Yes; choice 2, No;';
+    TTS.getInitStatus().then(() => {
+      TTS.speak(text + ' ' + options);
+    });
+  };
+
+  // Read the prompt to scan an additional hand
+  const readAdditionalHandSelection = async () => {
+    const text = 'Do you want to scan another Hand?';
+    const options = 'choice 1, Yes; choice 2, No;';
+    TTS.getInitStatus().then(() => {
+      TTS.speak(text + ' ' + options);
+    });
+  };
+
+  // Save the questionnaire data
   const saveData = async () => {
-    // TODO: ADD LOADING
     const history = await AsyncStorage.getItem('history');
     const newHistory = history ? JSON.parse(history) : [];
+    const newRecord = {
+      answeredQuestions: qStatus.answeredQuestions,
+      externalData: qStatus.externalData,
+      scans: qStatus.scans,
+    };
     if (newHistory.length >= 50) {
       Alert.alert(
         'File Limit Reached',
@@ -379,79 +524,267 @@ export const Questionnaire = () => {
           {
             text: 'Ok',
             onPress: async () => {
-              setQStatus(q => ({...q, state: QUESTIONNAIRE_STATES.SAVING}));
-              newHistory.shift(); // Remove the oldest questionnaire from the start
-              newHistory.push({
-                answeredQuestions: qStatus.answeredQuestions,
-                externalData: qStatus.externalData,
-              });
+              setQStatus((q) => ({ ...q, state: QUESTIONNAIRE_STATES.SAVING }));
+              newHistory.shift();
+              newHistory.push(newRecord);
               await AsyncStorage.setItem('history', JSON.stringify(newHistory));
-              setQStatus(q => ({...q, state: QUESTIONNAIRE_STATES.SAVED}));
+              setQStatus((q) => ({ ...q, state: QUESTIONNAIRE_STATES.SAVED }));
             },
           },
           {
             text: 'Cancel',
             style: 'cancel',
           },
-        ],
+        ]
       );
     } else {
-      setQStatus(q => ({...q, state: QUESTIONNAIRE_STATES.SAVING}));
-      newHistory.push({
-        answeredQuestions: qStatus.answeredQuestions,
-        externalData: qStatus.externalData,
-      });
+      setQStatus((q) => ({ ...q, state: QUESTIONNAIRE_STATES.SAVING }));
+      newHistory.push(newRecord);
       await AsyncStorage.setItem('history', JSON.stringify(newHistory));
-      // TODO: NOTIFY SAVED
-      setQStatus(q => ({...q, state: QUESTIONNAIRE_STATES.SAVED}));
+      setQStatus((q) => ({ ...q, state: QUESTIONNAIRE_STATES.SAVED }));
     }
   };
 
-  // CHECK CHAGES ON SAVED ANSWERED QUESTIONS
+  // Handle changes in answered questions
   useEffect(() => {
     if (qStatus.state === QUESTIONNAIRE_STATES.BEFORE_STARTING || isManualNavigation) {
-    setIsManualNavigation(false);
-    return;
-  }
+      setIsManualNavigation(false);
+      return;
+    }
     nextQuestion();
   }, [qStatus.answeredQuestions]);
 
-  // READ QUESTION ON INDEX UPDATE
+  // Read the question on index update
   useEffect(() => {
     if (qStatus.state !== QUESTIONNAIRE_STATES.STARTED) return;
     readQuestion();
   }, [qStatus.questionIdx]);
 
-  // HANDLE PARTIAL RESULT CHANGES
+  // Handle partial result changes
   useEffect(() => {
     console.log('FIRED');
     if (qStatus.state === QUESTIONNAIRE_STATES.BEFORE_STARTING) return;
 
-    const {answers} = questions[qStatus.questionIdx];
-
     const text = partialResults.results[0];
     if (!text) return;
+    console.log('Recognized text:', text);
+    const lowercaseText = text.toLowerCase();
 
-    const choiceNumber = getChoiceFromSpeech(text);
+    if (qStatus.state === QUESTIONNAIRE_STATES.SCAN_CONFIRMATION) {
+      const choiceNumber = getChoiceFromSpeech(lowercaseText);
+      if (choiceNumber && choiceNumber <= 2) {
+        handleScanConfirmation(['Yes', 'No'][choiceNumber - 1]);
+        return;
+      }
+
+      const words = lowercaseText.split(' ');
+      const number = words[words.length - 1];
+      if (numbersInWords[number] && numbersInWords[number] <= 2) {
+        handleScanConfirmation(['Yes', 'No'][numbersInWords[number] - 1]);
+        return;
+      }
+
+      if (lowercaseText.includes('yes')) {
+        handleScanConfirmation('Yes');
+        return;
+      }
+
+      if (lowercaseText.includes('no')) {
+        handleScanConfirmation('No');
+        return;
+      }
+      return;
+    }
+
+    if (qStatus.state === QUESTIONNAIRE_STATES.SCAN_HAND_SELECTION) {
+      const choiceNumber = getChoiceFromSpeech(lowercaseText);
+      if (choiceNumber && choiceNumber <= 2) {
+        handleHandSelection(['Left', 'Right'][choiceNumber - 1]);
+        return;
+      }
+
+      const words = lowercaseText.split(' ');
+      const number = words[words.length - 1];
+      if (numbersInWords[number] && numbersInWords[number] <= 2) {
+        handleHandSelection(['Left', 'Right'][numbersInWords[number] - 1]);
+        return;
+      }
+
+      if (lowercaseText.includes('left')) {
+        handleHandSelection('Left');
+        return;
+      }
+
+      if (lowercaseText.includes('right')) {
+        handleHandSelection('Right');
+        return;
+      }
+      return;
+    }
+
+    if (qStatus.state === QUESTIONNAIRE_STATES.SCAN_AI_DETECTION) {
+      const choiceNumber = getChoiceFromSpeech(lowercaseText);
+      if (choiceNumber && choiceNumber <= 2) {
+        handleAIDetection(['Yes', 'No'][choiceNumber - 1]);
+        return;
+      }
+
+      const words = lowercaseText.split(' ');
+      const number = words[words.length - 1];
+      if (numbersInWords[number] && numbersInWords[number] <= 2) {
+        handleAIDetection(['Yes', 'No'][numbersInWords[number] - 1]);
+        return;
+      }
+
+      if (lowercaseText.includes('yes')) {
+        handleAIDetection('Yes');
+        return;
+      }
+
+      if (lowercaseText.includes('no')) {
+        handleAIDetection('No');
+        return;
+      }
+      return;
+    }
+
+    if (qStatus.state === QUESTIONNAIRE_STATES.SCAN_FINGER_SELECTION) {
+      const choiceNumber = getChoiceFromSpeech(lowercaseText);
+      if (choiceNumber && choiceNumber <= 5) {
+        handleFingerSelection([
+          'Thumb',
+          'Index',
+          'Middle',
+          'Ring',
+          'Pinky',
+        ][choiceNumber - 1]);
+        return;
+      }
+
+      const words = lowercaseText.split(' ');
+      const number = words[words.length - 1];
+      if (numbersInWords[number] && numbersInWords[number] <= 5) {
+        handleFingerSelection([
+          'Thumb',
+          'Index',
+          'Middle',
+          'Ring',
+          'Pinky',
+        ][numbersInWords[number] - 1]);
+        return;
+      }
+
+      if (lowercaseText.includes('thumb')) {
+        handleFingerSelection('Thumb');
+        return;
+      }
+
+      if (lowercaseText.includes('index')) {
+        handleFingerSelection('Index');
+        return;
+      }
+
+      if (lowercaseText.includes('middle')) {
+        handleFingerSelection('Middle');
+        return;
+      }
+
+      if (lowercaseText.includes('ring')) {
+        handleFingerSelection('Ring');
+        return;
+      }
+
+      if (lowercaseText.includes('pinky')) {
+        handleFingerSelection('Pinky');
+        return;
+      }
+      return;
+    }
+
+    if (
+      qStatus.state === QUESTIONNAIRE_STATES.SCAN_TIP_OF_FINGER ||
+      qStatus.state === QUESTIONNAIRE_STATES.SCAN_PROXIMAL_OF_FINGER
+    ) {
+      if (lowercaseText.includes('start')) {
+        if (qStatus.state === QUESTIONNAIRE_STATES.SCAN_TIP_OF_FINGER) {
+          handleScanTipOfFinger('Start');
+        } else {
+          handleScanProximalOfFinger('Start');
+        }
+        return;
+      }
+      return;
+    }
+
+    if (qStatus.state ===
+        QUESTIONNAIRE_STATES.SCAN_ADDITIONAL_FINGER_SELECTION) {
+      const choiceNumber = getChoiceFromSpeech(lowercaseText);
+      if (choiceNumber && choiceNumber <= 2) {
+        handleAdditionalFingerSelection(['Yes', 'No'][choiceNumber - 1]);
+        return;
+      }
+
+      const words = lowercaseText.split(' ');
+      const number = words[words.length - 1];
+      if (numbersInWords[number] && numbersInWords[number] <= 2) {
+        handleAdditionalFingerSelection(['Yes', 'No'][numbersInWords[number] - 1]);
+        return;
+      }
+
+      if (lowercaseText.includes('yes')) {
+        handleAdditionalFingerSelection('Yes');
+        return;
+      }
+
+      if (lowercaseText.includes('no')) {
+        handleAdditionalFingerSelection('No');
+        return;
+      }
+      return;
+    }
+
+    if (qStatus.state === QUESTIONNAIRE_STATES.SCAN_ADDITIONAL_HAND_SELECTION) {
+      const choiceNumber = getChoiceFromSpeech(lowercaseText);
+      if (choiceNumber && choiceNumber <= 2) {
+        handleAdditionalHandSelection(['Yes', 'No'][choiceNumber - 1]);
+        return;
+      }
+
+      const words = lowercaseText.split(' ');
+      const number = words[words.length - 1];
+      if (numbersInWords[number] && numbersInWords[number] <= 2) {
+        handleAdditionalHandSelection(['Yes', 'No'][numbersInWords[number] - 1]);
+        return;
+      }
+
+      if (lowercaseText.includes('yes')) {
+        handleAdditionalHandSelection('Yes');
+        return;
+      }
+
+      if (lowercaseText.includes('no')) {
+        handleAdditionalHandSelection('No');
+        return;
+      }
+      return;
+    }
+
+    const { answers } = questions[qStatus.questionIdx];
+
+    const choiceNumber = getChoiceFromSpeech(lowercaseText);
     if (choiceNumber && choiceNumber <= answers.length) {
-      console.log('FOUND FOUND FOUND via choice');
       selectAnswer(answers[choiceNumber - 1]);
       return;
     }
 
-    const words = text.split(' ');
-    const number = words[words.length - 1].toLowerCase();
+    const words = lowercaseText.split(' ');
+    const number = words[words.length - 1];
     if (numbersInWords[number] && numbersInWords[number] <= answers.length) {
-      // found.set(true);
-      console.log('FOUND FOUND FOUND');
       selectAnswer(answers[numbersInWords[number] - 1]);
     } else {
       for (const text of partialResults.results) {
         for (const answ of answers) {
-          console.log(answ);
           if (text.toLowerCase().includes(answ.toLowerCase())) {
-            // found.set(true);
-            console.log('FOUND FOUND FOUND');
             selectAnswer(answ);
             return;
           }
@@ -460,17 +793,48 @@ export const Questionnaire = () => {
     }
   }, [partialResults.results]);
 
-  // QUESTIONNAIRE STATE CHANGE
+  // Handle questionnaire state change
   useEffect(() => {
     if (qStatus.state == QUESTIONNAIRE_STATES.STARTED) {
       if (qStatus.questionIdx === 0) readQuestion();
     }
 
+    if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_CONFIRMATION) {
+      readScanConfirmation();
+    }
+
+    if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_HAND_SELECTION) {
+      readHandSelection();
+    }
+
+    if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_AI_DETECTION) {
+      readAIDetection();
+    }
+
+    if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_FINGER_SELECTION) {
+      readFingerSelection();
+    }
+
+    if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_TIP_OF_FINGER) {
+      readTipOfFinger();
+    }
+    if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_PROXIMAL_OF_FINGER) {
+      readProximalOfFinger();
+    }
+    if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_ADDITIONAL_FINGER_SELECTION) {
+      readAdditionalFingerSelection();
+    }
+    if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_ADDITIONAL_HAND_SELECTION) {
+      readAdditionalHandSelection();
+    }
+
     if (qStatus.state == QUESTIONNAIRE_STATES.LOADING) {
-      getExternalInformation().then(information => {
+      getExternalInformation().then((information) => {
         const [location, weather] = information;
         const timestamp = new Date();
-        setQStatus(q => ({
+        stopRecording();
+        stopTTSAndVoice();
+        setQStatus((q) => ({
           ...q,
           externalData: {
             timestampLocale: timestamp.toLocaleString(),
@@ -484,15 +848,11 @@ export const Questionnaire = () => {
     }
   }, [qStatus.state]);
 
+  // Handle TTS state change
   useEffect(() => {
     if (ttsState === TTS_STATES.FINISHED) {
       const time = new Date().getTime();
-
-      // TODO:
-      // HACK 1: THIS IS NEEDED TO AVOID STARTING THE RECORDING IF WE MANUALLY SELECT THE ANSWER
-      // TTS.FINISHED IS FIRED ON TTS.STOP as well as when TTS.SPEAK finishes talking
       if (time - qStatus.lastAnswerSet <= TIME_FOR_LOCK) return;
-      console.log('STARTING RECORDING');
       startRecording();
     }
     if (ttsState === TTS_STATES.CANCELLED) {
@@ -504,7 +864,177 @@ export const Questionnaire = () => {
     }
   }, [ttsState]);
 
-  // UI LOGIC
+  // Handle scan confirmation
+  const handleScanConfirmation = (choice) => {
+    if (choice == 'Yes') {
+      stopTTSAndVoice().then(
+        setQStatus((q) => {
+          const lastAnswerSet = new Date().getTime();
+          return {
+            ...q,
+            state: QUESTIONNAIRE_STATES.SCAN_HAND_SELECTION,
+            lastAnswerSet,
+          };
+        })
+      );
+    } else {
+      stopTTSAndVoice().then(
+        setQStatus((q) => {
+          const lastAnswerSet = new Date().getTime();
+          return {
+            ...q,
+            state: QUESTIONNAIRE_STATES.LOADING,
+            lastAnswerSet,
+          };
+        })
+      );
+    }
+  };
+
+  // Handle hand selection
+  const handleHandSelection = (choice) => {
+    stopTTSAndVoice().then(
+      setQStatus((q) => {
+        const lastAnswerSet = new Date().getTime();
+        return {
+          ...q,
+          selectedHand: choice,
+          scanStep: 0,
+          state: QUESTIONNAIRE_STATES.TEMPSCAN,
+          // state: QUESTIONNAIRE_STATES.SCAN_AI_DETECTION,
+          lastAnswerSet,
+        }
+      })
+    );
+  };
+
+  // Handle AI detection
+  const handleAIDetection = (choice) => {
+    stopTTSAndVoice().then(
+      setQStatus((q) => {
+        const lastAnswerSet = new Date().getTime();
+        return {
+          ...q,
+          state: QUESTIONNAIRE_STATES.SCAN_FINGER_SELECTION,
+          lastAnswerSet,
+        }
+      })
+    );
+  };
+
+  // Handle finger selection
+  const handleFingerSelection = (choice) => {
+    stopTTSAndVoice().then(
+      setQStatus((q) => {
+        const lastAnswerSet = new Date().getTime();
+        return {
+          ...q,
+          selectedFinger: choice,
+          scanStep: 1,
+          state: QUESTIONNAIRE_STATES.SCAN_TIP_OF_FINGER,
+          lastAnswerSet,
+        }
+      })
+    );
+  };
+
+  // Handle scan of the tip of the finger
+  const handleScanTipOfFinger = (choice) => {
+    stopTTSAndVoice().then(
+      setQStatus((q) => {
+        const lastAnswerSet = new Date().getTime();
+        return {
+          ...q,
+          scanStep: 2,
+          state: QUESTIONNAIRE_STATES.TEMPSCAN,
+          // state: QUESTIONNAIRE_STATES.SCAN_PROXIMAL_OF_FINGER,
+          lastAnswerSet,
+        }
+      })
+    );
+  };
+
+  // Handle scan of the proximal of the finger
+  const handleScanProximalOfFinger = (choice) => {
+    stopTTSAndVoice().then(
+      setQStatus((q) => {
+        const lastAnswerSet = new Date().getTime();
+        return {
+          ...q,
+          scanStep: 3,
+          state: QUESTIONNAIRE_STATES.TEMPSCAN,
+          // state: QUESTIONNAIRE_STATES.SCAN_ADDITIONAL_FINGER_SELECTION,
+          lastAnswerSet,
+        }
+      })
+    );
+  };
+
+  // Handle additional finger selection
+  const handleAdditionalFingerSelection = (choice) => {
+    if (choice == 'Yes') {
+      stopTTSAndVoice().then(
+        setQStatus((q) => {
+          const lastAnswerSet = new Date().getTime();
+          return {
+            ...q,
+            state: QUESTIONNAIRE_STATES.SCAN_FINGER_SELECTION,
+            lastAnswerSet,
+          }
+        })
+      );
+    } else {
+      stopTTSAndVoice().then(
+        setQStatus((q) => {
+          const lastAnswerSet = new Date().getTime();
+          return {
+            ...q,
+            state: QUESTIONNAIRE_STATES.SCAN_ADDITIONAL_HAND_SELECTION,
+            lastAnswerSet,
+          }
+        })
+      );
+    }
+  };
+
+  // Handle additional hand selection
+  const handleAdditionalHandSelection = (choice) => {
+    if (choice == 'Yes') {
+      stopTTSAndVoice().then(
+        setQStatus((q) => {
+          const lastAnswerSet = new Date().getTime();
+          return {
+            ...q,
+            state: QUESTIONNAIRE_STATES.SCAN_HAND_SELECTION,
+            selectedHand: '',
+            selectedFinger: '',
+            scanStep: 0,
+            lastAnswerSet,
+          }
+        })
+      );
+    } else {
+      stopTTSAndVoice().then(
+        setQStatus((q) => {
+          const lastAnswerSet = new Date().getTime();
+          return {
+            ...q,
+            state: QUESTIONNAIRE_STATES.LOADING,
+            lastAnswerSet,
+          }
+        })
+      );
+    }
+  };
+
+  // Calculate average temperature
+  const calculateAverageTemperature = (data) => {
+    const flattenedData = data.flat();
+    const sum = flattenedData.reduce((acc, val) => acc + val, 0);
+    return (sum / flattenedData.length).toFixed(2);
+  };
+
+  // UI logic and rendering
 
   if (qStatus.state == QUESTIONNAIRE_STATES.BEFORE_STARTING) {
     return (
@@ -515,36 +1045,39 @@ export const Questionnaire = () => {
             style={{
               marginBottom: 10,
               color: '#4388d6',
-            }}>
+            }}
+          >
             Instructions
           </Text>
-          <Text style={{marginBottom: 5, fontSize: 16}}>
+          <Text style={{ marginBottom: 5, fontSize: 16 }}>
             The Questionnaire consists of multiple multi-choice questions.
           </Text>
-          <Text style={{marginBottom: 5, fontSize: 16}}>
-            If you are using an Android phone with the device's voice acess on please TURN VOICE ACCESS OFF
-            while completing the questionnaire. 
+          <Text style={{ marginBottom: 5, fontSize: 16 }}>
+            If you are using an Android phone with the device's voice access on
+            please TURN VOICE ACCESS OFF while completing the questionnaire.
           </Text>
-          <Text style={{marginBottom: 5, fontSize: 16}}>
-            You can answer each question by speaking the answer in full or by saying "choice" and then the
-            number associated with the answer. The questionnaire can also be
-            completed by manually selecting the answers.
+          <Text style={{ marginBottom: 5, fontSize: 16 }}>
+            You can answer each question by speaking the answer in full or by
+            saying "choice" and then the number associated with the answer. The
+            questionnaire can also be completed by manually selecting the
+            answers.
           </Text>
-          <Text style={{marginBottom: 5, fontSize: 16}}>
+          <Text style={{ marginBottom: 5, fontSize: 16 }}>
             After going though the questionnaire you can save your answers and
             view them in the history page or restart the questionnaire from the
-            beggining.
+            beginning.
           </Text>
-          
-          <Text style={{fontSize: 16}}>
-            Press the <Text style={{color: '#4388d6'}}>blue</Text> button below to
+
+          <Text style={{ fontSize: 16 }}>
+            Press the{' '}
+            <Text style={{ color: '#4388d6' }}>blue</Text> button below to
             start the questionnaire
           </Text>
         </View>
         <View>
           <Button
-            title="Begin"
-            size="lg"
+            title='Begin'
+            size='lg'
             titleStyle={{
               color: 'white',
               fontSize: 25,
@@ -570,10 +1103,11 @@ export const Questionnaire = () => {
             style={{
               marginBottom: 10,
               color: '#4388d6',
-            }}>
+            }}
+          >
             Question {qStatus.questionIdx + 1}
           </Text>
-          <Text style={{fontSize: 20}}>
+          <Text style={{ fontSize: 20 }}>
             {questions[qStatus.questionIdx].question}
           </Text>
         </View>
@@ -595,33 +1129,39 @@ export const Questionnaire = () => {
                   marginBottom: 10,
                 }}
                 key={`${questions[qStatus.questionIdx].id}-${ans}`}
-                onPress={() => selectAnswer(ans)}
+                onPress={() => {
+                  stopRecording();
+                  selectAnswer(ans);
+                }}
               />
             );
           })}
         </View>
 
         {qStatus.questionIdx > 0 && (
-        <View style={{marginTop: 10}}>
+          <View style={{ marginTop: 10 }}>
+            <Button
+              title='Previous Question'
+              buttonStyle={{
+                borderWidth: 1,
+                borderColor: '#4388d6',
+                borderRadius: 10,
+                backgroundColor: '#ffffff',
+              }}
+              titleStyle={{
+                color: '#4388d6',
+                fontSize: 20,
+              }}
+              onPress={() => {
+                stopRecording();
+                goToPreviousQuestion();
+              }}
+            />
+          </View>
+        )}
+        <View style={{ marginTop: 20 }}>
           <Button
-            title="Previous Question"
-            buttonStyle={{
-              borderWidth: 1,
-              borderColor: '#4388d6',
-              borderRadius: 10,
-              backgroundColor: '#ffffff',         
-            }}
-            titleStyle={{
-              color: '#4388d6',
-              fontSize: 20,
-            }}
-            onPress={goToPreviousQuestion}
-          />
-        </View>
-      )}
-        <View style={{marginTop: 20}}>
-          <Button
-            title="Cancel Questionnaire"
+            title='Cancel Questionnaire'
             buttonStyle={{
               borderWidth: 1,
               borderColor: '#ff0000',
@@ -632,7 +1172,454 @@ export const Questionnaire = () => {
               color: '#ff0000',
               fontSize: 20,
             }}
-            onPress={cancelQuestionnaire}
+            onPress={() => {
+              stopRecording();
+              cancelQuestionnaire();
+            }}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_CONFIRMATION) {
+    return (
+      <View style={styles.containerQuestionnaire}>
+        <View style={styles.containerQuestion}>
+          <Text
+            h3
+            style={{
+              marginBottom: 10,
+              color: '#4388d6',
+            }}
+          >
+            Do you want to proceed with the scan?
+          </Text>
+        </View>
+        <View accessible={Platform.OS === 'android' ? true : false}>
+          {['Yes', 'No'].map((option, index) => {
+            return (
+              <Button
+                title={`${index + 1}. ${option}`}
+                accessible={Platform.OS === 'android' ? true : false}
+                accessibilityLabelledBy={index + 1}
+                titleStyle={{
+                  color: 'white',
+                  fontSize: 25,
+                  fontWeight: 'bold',
+                }}
+                containerStyle={{
+                  borderRadius: 10,
+                  width: 300,
+                  marginBottom: 10,
+                }}
+                key={option}
+                onPress={() => {
+                  stopRecording();
+                  handleScanConfirmation(option);
+                }}
+              />
+            );
+          })}
+        </View>
+        <View style={{ marginTop: 20 }}>
+          <Button
+            title='Cancel Questionnaire'
+            buttonStyle={{
+              borderWidth: 1,
+              borderColor: '#ff0000',
+              borderRadius: 10,
+              backgroundColor: '#ffffff',
+            }}
+            titleStyle={{ color: '#ff0000', fontSize: 20 }}
+            onPress={() => {
+              stopRecording();
+              cancelQuestionnaire();
+            }}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_HAND_SELECTION) {
+    return (
+      <View style={styles.containerQuestionnaire}>
+        <View style={styles.containerQuestion}>
+          <Text
+            h3
+            style={{
+              marginBottom: 10,
+              color: '#4388d6',
+            }}
+          >
+            Which hand do you want to scan?
+          </Text>
+        </View>
+        <View accessible={Platform.OS === 'android' ? true : false}>
+          {['Left', 'Right'].map((option, index) => {
+            return (
+              <Button
+                title={`${index + 1}. ${option}`}
+                accessible={Platform.OS === 'android' ? true : false}
+                accessibilityLabelledBy={index + 1}
+                titleStyle={{
+                  color: 'white',
+                  fontSize: 25,
+                  fontWeight: 'bold',
+                }}
+                containerStyle={{
+                  borderRadius: 10,
+                  width: 300,
+                  marginBottom: 10,
+                }}
+                key={option}
+                onPress={() => {
+                  stopRecording();
+                  handleHandSelection(option);
+                }}
+              />
+            );
+          })}
+        </View>
+        <View style={{ marginTop: 20 }}>
+          <Button
+            title='Cancel Questionnaire'
+            buttonStyle={{
+              borderWidth: 1,
+              borderColor: '#ff0000',
+              borderRadius: 10,
+              backgroundColor: '#ffffff',
+            }}
+            titleStyle={{ color: '#ff0000', fontSize: 20 }}
+            onPress={() => {
+              stopRecording();
+              cancelQuestionnaire();
+            }}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_AI_DETECTION) {
+    return (
+      <View style={styles.containerQuestionnaire}>
+        <View style={styles.containerQuestion}>
+          <Text h3 style={{ marginBottom: 10, color: '#4388d6' }}>
+            The AI detected that PLACEHOLDER fingers have symptoms
+          </Text>
+        </View>
+        <View accessible={Platform.OS === 'android' ? true : false}>
+          {['Yes', 'No'].map((option, index) => (
+            <Button
+              title={`${index + 1}. ${option}`}
+              accessible={Platform.OS === 'android' ? true : false}
+              accessibilityLabelledBy={index + 1}
+              titleStyle={{ color: 'white', fontSize: 25, fontWeight: 'bold' }}
+              containerStyle={{
+                borderRadius: 10,
+                width: 300,
+                marginBottom: 10,
+              }}
+              key={option}
+              onPress={() => {
+                stopRecording();
+                handleAIDetection(option);
+              }}
+            />
+          ))}
+        </View>
+        <View style={{ marginTop: 20 }}>
+          <Button
+            title='Cancel Questionnaire'
+            buttonStyle={{
+              borderWidth: 1,
+              borderColor: '#ff0000',
+              borderRadius: 10,
+              backgroundColor: '#ffffff',
+            }}
+            titleStyle={{ color: '#ff0000', fontSize: 20 }}
+            onPress={() => {
+              stopRecording();
+              cancelQuestionnaire();
+            }}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_FINGER_SELECTION) {
+    return (
+      <View style={styles.containerQuestionnaire}>
+        <View style={styles.containerQuestion}>
+          <Text
+            h3
+            style={{
+              marginBottom: 10,
+              color: '#4388d6',
+            }}
+          >
+            Which finger do you want to scan?
+          </Text>
+        </View>
+        <View accessible={Platform.OS === 'android' ? true : false}>
+          {['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'].map((option, index) => {
+            return (
+              <Button
+                title={`${index + 1}. ${option}`}
+                accessible={Platform.OS === 'android' ? true : false}
+                accessibilityLabelledBy={index + 1}
+                titleStyle={{
+                  color: 'white',
+                  fontSize: 25,
+                  fontWeight: 'bold',
+                }}
+                containerStyle={{
+                  borderRadius: 10,
+                  width: 300,
+                  marginBottom: 10,
+                }}
+                key={option}
+                onPress={() => {
+                  stopRecording();
+                  handleFingerSelection(option);
+                }}
+              />
+            );
+          })}
+        </View>
+        <View style={{ marginTop: 20 }}>
+          <Button
+            title='Cancel Questionnaire'
+            buttonStyle={{
+              borderWidth: 1,
+              borderColor: '#ff0000',
+              borderRadius: 10,
+              backgroundColor: '#ffffff',
+            }}
+            titleStyle={{ color: '#ff0000', fontSize: 20 }}
+            onPress={() => {
+              stopRecording();
+              cancelQuestionnaire();
+            }}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_TIP_OF_FINGER) {
+    return (
+      <View style={styles.containerQuestionnaire}>
+        <View style={styles.containerQuestion}>
+          <Text
+            h3
+            style={{
+              marginBottom: 10,
+              color: '#4388d6',
+            }}
+          >
+            Please scan the tip of your finger
+          </Text>
+        </View>
+        <View accessible={Platform.OS === 'android' ? true : false}>
+          {['Start'].map((option, index) => {
+            return (
+              <Button
+                title={`${index + 1}. ${option}`}
+                accessible={Platform.OS === 'android' ? true : false}
+                accessibilityLabelledBy={index + 1}
+                titleStyle={{
+                  color: 'white',
+                  fontSize: 25,
+                  fontWeight: 'bold',
+                }}
+                containerStyle={{
+                  borderRadius: 10,
+                  width: 300,
+                  marginBottom: 10,
+                }}
+                key={option}
+                onPress={() => {
+                  stopRecording();
+                  handleScanTipOfFinger(option);
+                }}
+              />
+            );
+          })}
+        </View>
+        <View style={{ marginTop: 20 }}>
+          <Button
+            title='Cancel Questionnaire'
+            buttonStyle={{
+              borderWidth: 1,
+              borderColor: '#ff0000',
+              borderRadius: 10,
+              backgroundColor: '#ffffff',
+            }}
+            titleStyle={{ color: '#ff0000', fontSize: 20 }}
+            onPress={() => {
+              stopRecording();
+              cancelQuestionnaire();
+            }}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_PROXIMAL_OF_FINGER) {
+    return (
+      <View style={styles.containerQuestionnaire}>
+        <View style={styles.containerQuestion}>
+          <Text
+            h3
+            style={{
+              marginBottom: 10,
+              color: '#4388d6',
+            }}
+          >
+            Please scan the proximal of your finger
+          </Text>
+        </View>
+        <View accessible={Platform.OS === 'android' ? true : false}>
+          {['Start'].map((option, index) => {
+            return (
+              <Button
+                title={`${index + 1}. ${option}`}
+                accessible={Platform.OS === 'android' ? true : false}
+                accessibilityLabelledBy={index + 1}
+                titleStyle={{
+                  color: 'white',
+                  fontSize: 25,
+                  fontWeight: 'bold',
+                }}
+                containerStyle={{
+                  borderRadius: 10,
+                  width: 300,
+                  marginBottom: 10,
+                }}
+                key={option}
+                onPress={() => {
+                  stopRecording();
+                  handleScanProximalOfFinger(option);
+                }}
+              />
+            );
+          })}
+        </View>
+        <View style={{ marginTop: 20 }}>
+          <Button
+            title='Cancel Questionnaire'
+            buttonStyle={{
+              borderWidth: 1,
+              borderColor: '#ff0000',
+              borderRadius: 10,
+              backgroundColor: '#ffffff',
+            }}
+            titleStyle={{ color: '#ff0000', fontSize: 20 }}
+            onPress={() => {
+              stopRecording();
+              cancelQuestionnaire();
+            }}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_ADDITIONAL_FINGER_SELECTION) {
+    return (
+      <View style={styles.containerQuestionnaire}>
+        <View style={styles.containerQuestion}>
+          <Text h3 style={{ marginBottom: 10, color: '#4388d6' }}>
+            Do you want to scan another Finger?
+          </Text>
+        </View>
+        <View accessible={Platform.OS === 'android' ? true : false}>
+          {['Yes', 'No'].map((option, index) => (
+            <Button
+              title={`${index + 1}. ${option}`}
+              accessible={Platform.OS === 'android' ? true : false}
+              accessibilityLabelledBy={index + 1}
+              titleStyle={{ color: 'white', fontSize: 25, fontWeight: 'bold' }}
+              containerStyle={{
+                borderRadius: 10,
+                width: 300,
+                marginBottom: 10,
+              }}
+              key={option}
+              onPress={() => {
+                stopRecording();
+                handleAdditionalFingerSelection(option);
+              }}
+            />
+          ))}
+        </View>
+        <View style={{ marginTop: 20 }}>
+          <Button
+            title='Cancel Questionnaire'
+            buttonStyle={{
+              borderWidth: 1,
+              borderColor: '#ff0000',
+              borderRadius: 10,
+              backgroundColor: '#ffffff',
+            }}
+            titleStyle={{ color: '#ff0000', fontSize: 20 }}
+            onPress={() => {
+              stopRecording();
+              cancelQuestionnaire();
+            }}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (qStatus.state == QUESTIONNAIRE_STATES.SCAN_ADDITIONAL_HAND_SELECTION) {
+    return (
+      <View style={styles.containerQuestionnaire}>
+        <View style={styles.containerQuestion}>
+          <Text h3 style={{ marginBottom: 10, color: '#4388d6' }}>
+            Do you want to scan another Hand?
+          </Text>
+        </View>
+        <View accessible={Platform.OS === 'android' ? true : false}>
+          {['Yes', 'No'].map((option, index) => (
+            <Button
+              title={`${index + 1}. ${option}`}
+              accessible={Platform.OS === 'android' ? true : false}
+              accessibilityLabelledBy={index + 1}
+              titleStyle={{ color: 'white', fontSize: 25, fontWeight: 'bold' }}
+              containerStyle={{
+                borderRadius: 10,
+                width: 300,
+                marginBottom: 10,
+              }}
+              key={option}
+              onPress={() => {
+                stopRecording();
+                handleAdditionalHandSelection(option);
+              }}
+            />
+          ))}
+        </View>
+        <View style={{ marginTop: 20 }}>
+          <Button
+            title='Cancel Questionnaire'
+            buttonStyle={{
+              borderWidth: 1,
+              borderColor: '#ff0000',
+              borderRadius: 10,
+              backgroundColor: '#ffffff',
+            }}
+            titleStyle={{ color: '#ff0000', fontSize: 20 }}
+            onPress={() => {
+              stopRecording();
+              cancelQuestionnaire();
+            }}
           />
         </View>
       </View>
@@ -640,18 +1627,15 @@ export const Questionnaire = () => {
   }
 
   if (qStatus.state == QUESTIONNAIRE_STATES.LOADING) {
-    if (
-      qStatus.questionIdx != 0 &&
-      qStatus.questionIdx + 1 === questions.length
-    ) {
+    if (qStatus.questionIdx != 0 && qStatus.questionIdx + 1 === questions.length) {
       return (
         <View style={styles.containerResults}>
-          <Text h3 style={{color: '#4388d6', marginBottom: 12}}>
+          <Text h3 style={{ color: '#4388d6', marginBottom: 12 }}>
             Collecting Results...
           </Text>
           <LinearProgress
-            color="primary"
-            animation={{duration: 700}}
+            color='primary'
+            animation={{ duration: 700 }}
             value={1}
           />
         </View>
@@ -662,10 +1646,10 @@ export const Questionnaire = () => {
   if (qStatus.state == QUESTIONNAIRE_STATES.SAVING) {
     return (
       <View style={styles.containerResults}>
-        <Text h3 style={{color: '#4388d6', marginBottom: 12}}>
+        <Text h3 style={{ color: '#4388d6', marginBottom: 12 }}>
           Saving...
         </Text>
-        <LinearProgress color="primary" animation={{duration: 700}} value={1} />
+        <LinearProgress color='primary' animation={{ duration: 700 }} value={1} />
       </View>
     );
   }
@@ -673,10 +1657,40 @@ export const Questionnaire = () => {
   if (qStatus.state == QUESTIONNAIRE_STATES.SAVED) {
     return (
       <View style={styles.containerSaved}>
-        <Text style={{color: '#4ec747', fontSize: 50}}>Saved</Text>
+        <Text style={{ color: '#4ec747', fontSize: 50 }}>Saved</Text>
       </View>
+    );
+  }
 
-      // <View></View>
+  if (qStatus.state == QUESTIONNAIRE_STATES.TEMPSCAN) {
+    return (
+      <Temperature
+        onContinue={(savedScans) => {
+          stopRecording();
+          setQStatus((q) => {
+            const updatedScans = [...q.scans, ...savedScans];
+            const lastAnswerSet = new Date().getTime();
+            return {
+              ...q,
+              scans: updatedScans,
+              state:
+                q.scanStep === 0
+                  ? QUESTIONNAIRE_STATES.SCAN_AI_DETECTION
+                  : q.scanStep === 1
+                  ? QUESTIONNAIRE_STATES.SCAN_FINGER_SELECTION
+                  : q.scanStep === 2
+                  ? QUESTIONNAIRE_STATES.SCAN_PROXIMAL_OF_FINGER
+                  : q.scanStep === 3
+                  ? QUESTIONNAIRE_STATES.SCAN_ADDITIONAL_FINGER_SELECTION
+                  : QUESTIONNAIRE_STATES.FINISHED,
+              lastAnswerSet,
+            };
+          });
+        }}
+        selectedHand={qStatus.selectedHand}
+        selectedFinger={qStatus.selectedFinger}
+        scanStep={qStatus.scanStep}
+      />
     );
   }
 
@@ -685,39 +1699,39 @@ export const Questionnaire = () => {
       <ScrollView>
         <View style={styles.containerResults}>
           <View>
-            <View style={{marginBottom: 15}}>
-              <Text style={{fontSize: 20, color: '#4388d6'}}>
+            <View style={{ marginBottom: 15 }}>
+              <Text style={{ fontSize: 20, color: '#4388d6' }}>
                 {' '}
                 Timestamp:{' '}
-                <Text style={{fontSize: 15}}>
+                <Text style={{ fontSize: 15 }}>
                   {qStatus.externalData.timestampLocale}
                 </Text>
               </Text>
             </View>
-            <View style={{marginBottom: 15}}>
-              <Text style={{fontSize: 20, color: '#4388d6'}}>
+            <View style={{ marginBottom: 15 }}>
+              <Text style={{ fontSize: 20, color: '#4388d6' }}>
                 {' '}
                 Location:{' '}
-                <Text style={{fontSize: 15}}>
+                <Text style={{ fontSize: 15 }}>
                   {qStatus.externalData.weather.city},{' '}
                   {qStatus.externalData.weather.country}
                 </Text>
               </Text>
             </View>
-            <View style={{marginBottom: 15}}>
-              <Text style={{fontSize: 20, color: '#4388d6'}}>
+            <View style={{ marginBottom: 15 }}>
+              <Text style={{ fontSize: 20, color: '#4388d6' }}>
                 {' '}
                 Weather:{' '}
-                <Text style={{fontSize: 15, textTransform: 'capitalize'}}>
+                <Text style={{ fontSize: 15, textTransform: 'capitalize' }}>
                   {qStatus.externalData.weather.description}{' '}
                 </Text>
               </Text>
             </View>
-            <View style={{marginBottom: 15}}>
-              <Text style={{fontSize: 20, color: '#4388d6'}}>
+            <View style={{ marginBottom: 15 }}>
+              <Text style={{ fontSize: 20, color: '#4388d6' }}>
                 {' '}
                 Temperature:{' '}
-                <Text style={{fontSize: 15}}>
+                <Text style={{ fontSize: 15 }}>
                   {' '}
                   {qStatus.externalData.weather.temperature} °F{' '}
                 </Text>
@@ -728,26 +1742,62 @@ export const Questionnaire = () => {
           {qStatus.answeredQuestions.map((q, qIdx) => {
             return (
               <View key={`${q.questionObj.question}-${q.patientAnswer}`}>
-                <View style={{marginBottom: 15}}>
-                  <Text h3 style={{color: '#4388d6', marginBottom: 12}}>
+                <View style={{ marginBottom: 15 }}>
+                  <Text h3 style={{ color: '#4388d6', marginBottom: 12 }}>
                     Question {qIdx + 1}
                   </Text>
-                  <Text style={{fontSize: 20, marginBottom: 5}}>
+                  <Text style={{ fontSize: 20, marginBottom: 5 }}>
                     {q.questionObj.question}
                   </Text>
-                  <Text style={{fontSize: 25, color: '#4388d6'}}>
+                  <Text style={{ fontSize: 25, color: '#4388d6' }}>
                     Answer:{' '}
-                    <Text style={{fontSize: 20}}>{q.patientAnswer}</Text>
+                    <Text style={{ fontSize: 20 }}>{q.patientAnswer}</Text>
                   </Text>
                 </View>
                 <Divider
                   inset={true}
-                  insetType="middle"
-                  style={{marginBottom: 15}}
+                  insetType='middle'
+                  style={{ marginBottom: 15 }}
                 />
               </View>
             );
           })}
+
+          {/* Display saved scans only if there are scans */}
+          {qStatus.scans.length > 0 && (
+            <View style={{ marginTop: 20 }}>
+              <Text h3 style={{ color: '#4388d6', marginBottom: 12 }}>
+                Saved Scans
+              </Text>
+              {qStatus.scans.map((scan) => (
+                <View key={scan.key} style={{ marginBottom: 15 }}>
+                  <Text style={{ fontSize: 20, color: '#4388d6' }}>
+                    Description:{' '}
+                    <Text style={{ fontSize: 15 }}>{scan.description}</Text>
+                  </Text>
+                  <Text style={{ fontSize: 20, color: '#4388d6' }}>
+                    Timestamp:{' '}
+                    <Text style={{ fontSize: 15 }}>
+                      {new Date(scan.timestamp).toLocaleString()}
+                    </Text>
+                  </Text>
+                  {scan.description.includes("Finger") && (
+                    <Text style={{ fontSize: 20, color: '#4388d6' }}>
+                      Average Temperature:{' '}
+                      <Text style={{ fontSize: 15 }}>
+                        {calculateAverageTemperature(scan.data)} °C
+                      </Text>
+                    </Text>
+                  )}
+                  <Divider
+                    inset={true}
+                    insetType='middle'
+                    style={{ marginBottom: 10, marginTop: 10 }}
+                  />
+                </View>
+              ))}
+            </View>
+          )}
 
           <View style={styles.constinerResultsButtons}>
             <Button
@@ -779,7 +1829,7 @@ export const Questionnaire = () => {
                 width: 120,
                 fontWeight: 'bold',
               }}
-              type="outline"
+              type='outline'
               onPress={restartQuestionnaire}
             />
           </View>
@@ -838,3 +1888,5 @@ const styles = StyleSheet.create({
     margin: 10,
   },
 });
+
+export default Questionnaire;

@@ -5,19 +5,51 @@ import {
   TouchableOpacity,
   Text,
   Linking,
+  Modal,
 } from 'react-native';
 import {
   initiateFitbitAuth,
   handleOpenURL,
 } from '../../components/Fitbit/index.js';
-import React, {useEffect} from 'react';
-import { connectToIOSWatch } from '../../components/iOSWatch/index.js'
+import React, {useEffect, useState} from 'react';
+import { connectToIOSWatch } from '../../components/iOSWatch/index.js';
 
 // import AntIcon from 'react-native-vector-icons/AntDesign';
 // import MaterialIcon from 'react-native-vector-icons/MaterialIcons';
 
-export const Home = props => {
-  const {navigation} = props;
+import { useNavigation } from '@react-navigation/native';
+import BleManager from 'react-native-ble-manager';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export const Home = () => {
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    Linking.addEventListener('url', handleOpenURL);
+
+    const tryReconnect = async () => {
+      try {
+        const storedPeripheralId = await AsyncStorage.getItem('connectedPeripheralId');
+        if (storedPeripheralId) {
+          BleManager.connect(storedPeripheralId)
+            .then(() => {
+              console.log('Reconnected to ' + storedPeripheralId);
+            })
+            .catch(error => {
+              // console.error('Connection attempt failed', error);
+            });
+        }
+      } catch (error) {
+        console.error('Error in tryReconnect:', error);
+      }
+    };
+
+    tryReconnect();
+
+    return () => {
+      Linking.removeEventListener('url', handleOpenURL);
+    };
+  }, []);
   const navigate = location => {
     navigation.push(location);
   };
@@ -34,7 +66,7 @@ export const Home = props => {
   //     Linking.removeEventListener('url', handleOpenURL);
   //   };
   // }, []);
-
+const [modalVisible, setModalVisible] = useState(false);
   return (
     <SafeAreaView>
       <View style={styles.titleContainer}>
@@ -73,26 +105,78 @@ export const Home = props => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          accessible={true}
-          accessibilityLabel="Connect to Fitbit"
-          accessibilityHint="Initiate Fitbit Authentication"
-          onPress={initiateFitbitAuth}
+          accesible={true}
+          accessibilityLabel="Connect to Device"
+          accessibilityHint="Initiate Connection to Device"
+          onPress={() => setModalVisible(true)}
           style={{
             ...styles.navigationButton,
             ...styles.navigationButtonFitbit,
           }}>
-          <Text accessible={false} style={styles.navigationButtonText}>
-            Connect to Fitbit
-          </Text>
-        </TouchableOpacity>
+            <Modal
+              animationType="fade"
+              transparent ={true}
+              visible={modalVisible}
+              onRequestClose={() => setModalVisible(false)}>
+              <View style={styles.modalContianer}>
+                <TouchableOpacity
+                  accessible={true}
+                  accessibilityLabel="Connect to Fitbit"
+                  accessibilityHint="Initiate Fitbit Authentication"
+                  onPress={initiateFitbitAuth}
+                  onPressOut={() => setModalVisible(false)}
+                  style={{
+                    ...styles.navigationButton,
+                    ...styles.navigationButtonFitbit,
+                  }}>
+                    <Text accessible={false} style={styles.navigationButtonText}>
+                      Connect to Fitbit
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessible={true}
+                  accessibilityLabel="Connect to iOS Watch"
+                  accessibilityHint="Initiate iOS Watch Connection"
+                  onPress={connectToIOSWatch}
+                  onPressOut={() => setModalVisible(false)}
+                  style={{
+                    ...styles.navigationButton,
+                   ...styles.navigationButtoniOSWatch
+                   }}>
+                  <Text accessible={false} style={styles.navigationButtonText}>
+                    Connect to iOS Watch
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  accessible={true}
+                  accessibilityLabel="Cancel"
+                  accessibilityHint="Cancel"
+                  onPressOut={() => setModalVisible(false)}
+                  style={{
+                    ...styles.navigationButton,
+                    ...styles.navigationButtonFitbit,
+                  }}>
+                    <Text accessible={false} style={styles.navigationButtonText}>
+                      Cancel
+                  </Text>
+                </TouchableOpacity>
+                </View>
+                </Modal>
+              <Text accessible={false} style={styles.navigationButtonText}>
+                Connect to Device
+              </Text>
+            </TouchableOpacity>
         <TouchableOpacity
           accessible={true}
-          accessibilityLabel="Connect to iOS Watch"
-          accessibilityHint="Initiate iOS Watch Connection"
-          onPress={connectToIOSWatch}
-          style={{...styles.navigationButton, ...styles.navigationButtoniOSWatch}}>
+          accessibilityLabel="Connect to Sensor"
+          accessibilityHint="Manage Sensor Connection"
+          onPress={() => navigate('BluetoothConnect')}
+          style={{
+            ...styles.navigationButton,
+            ...styles.navigationButtonBluetooth,
+          }}>
           <Text accessible={false} style={styles.navigationButtonText}>
-             Connect to iOS Watch
+             Connect to Bluetooth
           </Text>
         </TouchableOpacity>
       </View>
@@ -150,5 +234,28 @@ const styles = StyleSheet.create({
   },
   navigationButtoniOSWatch: {
     backgroundColor: '#4388d6',
+  },
+  navigationButtonBluetooth: {
+    backgroundColor: '#4388d6',
+  },
+  modalContianer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,.75)',
+  },
+  modalView: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 });
