@@ -142,13 +142,15 @@ const Questionnaire = () => {
     console.log('onSpeechPartialResults: ', e);
     const milis = new Date().getTime();
     const result = e.value[0].toLowerCase();
-    if (result.includes(VOICE_COMMANDS.PREVIOUS_QUESTION)) {
-      stopRecording();
-      goToPreviousQuestion();
-    } else if (result.includes(VOICE_COMMANDS.CANCEL_QUESTIONNAIRE)) {
-      stopRecording();
-      cancelQuestionnaire();
-    } else if (result.includes(VOICE_COMMANDS.BEGIN_QUESTIONNAIRE)) {
+    // if (result.includes(VOICE_COMMANDS.PREVIOUS_QUESTION)) {
+    //   stopRecording();
+    //   goToPreviousQuestion();
+    //   console.log("Spracheingabe erfolgt")
+    // } else if (result.includes(VOICE_COMMANDS.CANCEL_QUESTIONNAIRE)) {
+    //   stopRecording();
+    //   cancelQuestionnaire();
+    // } else 
+    if (result.includes(VOICE_COMMANDS.BEGIN_QUESTIONNAIRE)) {
       stopRecording();
       startQuestionnaire(); // Start the questionnaire if the voice command is recognized
     }
@@ -309,6 +311,8 @@ const Questionnaire = () => {
     } catch (error) {
       console.log('Error stopping TTS in goToPreviousQuestion', error);
     }
+    console.log("Zur vorherigen Frage gegangen")
+
 
     setQStatus((q) => {
       if (q.questionIdx === 0) return q;
@@ -700,6 +704,19 @@ const Questionnaire = () => {
       }
       return;
     }
+
+    if (lowercaseText.includes(VOICE_COMMANDS.PREVIOUS_QUESTION)) {
+      stopRecording();
+      goToPreviousQuestion();
+      console.log("Spracheingabe erfolgt")
+    } else if (lowercaseText.includes(VOICE_COMMANDS.CANCEL_QUESTIONNAIRE)) {
+      stopRecording();
+      cancelQuestionnaire();
+    } 
+    // else if (lowercaseText.includes(VOICE_COMMANDS.BEGIN_QUESTIONNAIRE)) {
+    //   stopRecording();
+    //   startQuestionnaire(); // Start the questionnaire if the voice command is recognized
+    // }
 
     if (
       qStatus.state === QUESTIONNAIRE_STATES.SCAN_TIP_OF_FINGER ||
